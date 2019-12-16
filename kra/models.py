@@ -3,6 +3,8 @@ import enum
 from django.db import models
 from django.core.validators import MinValueValidator
 
+from utils.django.models import EnumField
+
 
 class WorkloadKind(enum.IntEnum):
     ReplicaSet = 1
@@ -14,7 +16,7 @@ class WorkloadKind(enum.IntEnum):
 
 
 class Workload(models.Model):
-    kind = EnumField(WorkloadKind)
+    kind = EnumField(enum_class=WorkloadKind)
     namespace = models.CharField(max_length=255)
     name = models.CharField(max_length=255)
     priority = models.FloatField(validators=[MinValueValidator(0)], default=1)
@@ -27,7 +29,8 @@ class Workload(models.Model):
 
 class Pod(models.Model):
     uid = models.UUIDField(unique=True)
-    workload = models.ForeignKey('Workload', on_delete=models.CASCADE)
+    workload = models.ForeignKey('Workload', on_delete=models.CASCADE, blank=True, null=True)
+    namespace = models.CharField(max_length=255)
     name = models.CharField(max_length=255)
     spec_hash = models.CharField(max_length=32)  # maybe add WorkloadRevision proxy model
     started_at = models.DateTimeField()
@@ -69,7 +72,7 @@ class Adjustment(models.Model):
 
 
 # see https://docs.djangoproject.com/en/3.0/topics/db/multi-db/#an-example
-class KubePSRecord(models.Model):
+class PSRecord(models.Model):
     ts = models.DateTimeField(primary_key=True)
     hostname = models.TextField()
     pid = models.BigIntegerField()
