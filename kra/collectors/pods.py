@@ -1,8 +1,12 @@
+import queue
 import logging
+import threading
 
 import kubernetes
 import kubernetes.client.rest
 from django.utils import timezone
+
+from utils.signal import install_shutdown_signal_handlers
 
 from kra import models
 from kra import kube_watch
@@ -11,57 +15,75 @@ log = logging.getLogger(__name__)
 
 
 def main():
+    install_shutdown_signal_handlers()
+
     configuration = kubernetes.client.Configuration()
     configuration.host = 'http://127.0.0.1:8001'
     kubernetes.client.Configuration.set_default(configuration)
 
     # TODO: get initial pods on startup and mark others as gone
 
-    # TODO: add events to queue and handle them in separate thread
-    #       (and handle errors: pod already deleted, workload deleted, etc)
-    #       log events in queue
+    q = queue.Queue()
+    handler = HandlerThread(q)
+    handler.start()
 
     v1 = kubernetes.client.CoreV1Api()
 
     for event_type, pod in kube_watch.watch(v1.list_pod_for_all_namespaces):
+        q.put((event_type, pod))
+
+
+class HandlerThread(threading.Thread):
+    def __init__(self, queue):
+        super().__init__(daemon=True)
+        self.queue = queue
+
+    def run(self):
+        while True:
+            event_type, pod = self.queue.get()
+            try:
+                self.handle_event(event_type, pod)
+            except Exception:
+                log.error('Failed to handle %s on pod %s/%s',
+                          event_type.name, pod.metadata.namespace, pod.metadata.name)
+
+    def handle_event(self, event_type, pod):
         log.info('%s %s/%s', event_type.name, pod.metadata.namespace, pod.metadata.name)
 
         if event_type in (kube_watch.EventType.ADDED, kube_watch.EventType.MODIFIED):
-            handle_update(pod)
+            self.handle_update(pod)
         elif event_type == kube_watch.EventType.DELETED:
-            handle_delete(pod)
+            self.handle_delete(pod)
 
+    def handle_delete(self, pod):
+        models.Pod.objects.filter(uid=pod.metadata.uid).update(gone_at=timezone.now())
 
-def handle_delete(pod):
-    models.Pod.objects.filter(uid=pod.metadata.uid).update(gone_at=timezone.now())
+    def handle_update(self, pod):
+        if pod.status.start_time is None:
+            # Pod is creating, and not started yet
+            return
 
+        data = {
+            'namespace': pod.metadata.namespace,
+            'name': pod.metadata.name,
+            'spec_hash': '?',  # TODO
+            'started_at': pod.status.start_time,
+        }
 
-def handle_update(pod):
-    if pod.status.start_time is None:
-        # Pod is creating, and not started yet
-        return
-
-    data = {
-        'namespace': pod.metadata.namespace,
-        'name': pod.metadata.name,
-        'spec_hash': '?',  # TODO
-        'started_at': pod.status.start_time,
-    }
-
-    try:
         try:
-            data['workload'] = get_workload_from_pod(pod)
-        except kubernetes.client.rest.ApiException as e:
-            if e.status == 404:
-                log.warning('Failed to get workload for pod %s/%s: Not Found',
-                            pod.metadata.namespace, pod.metadata.name)
-            else:
-                raise e
-    except Exception:
-        log.warning('Failed to get workload for pod %s/%s',
-                    pod.metadata.namespace, pod.metadata.name, exc_info=True)
+            try:
+                data['workload'] = get_workload_from_pod(pod)
+            except kubernetes.client.rest.ApiException as e:
+                if e.status == 404:
+                    log.warning('Failed to get workload for pod %s/%s: Not Found',
+                                pod.metadata.namespace, pod.metadata.name)
+                else:
+                    raise e
+        except Exception:
+            log.warning('Failed to get workload for pod %s/%s',
+                        pod.metadata.namespace, pod.metadata.name, exc_info=True)
 
-    models.Pod.objects.update_or_create(uid=pod.metadata.uid, defaults=data)
+        models.Pod.objects.update_or_create(uid=pod.metadata.uid, defaults=data)
 
 
 def get_workload_from_pod(pod):
