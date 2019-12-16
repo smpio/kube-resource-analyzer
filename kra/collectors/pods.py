@@ -112,9 +112,9 @@ def update_containers(pod, mypod):
         container_data = {}
         if container.resources:
             if container.resources.limits:
-                container_data['memory_limit_mb'] = parse_memory_quantity(container.resources.limits.get('memory'))
+                container_data['memory_limit_mi'] = parse_memory_quantity(container.resources.limits.get('memory'))
             if container.resources.requests:
-                container_data['cpu_request'] = parse_cpu_quantity(container.resources.requests.get('cpu'))
+                container_data['cpu_request_m'] = parse_cpu_quantity(container.resources.requests.get('cpu'))
         models.Container.objects.update_or_create(pod=mypod, name=container.name, defaults=container_data)
 
 

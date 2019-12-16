@@ -40,8 +40,8 @@ class Pod(models.Model):
 class Container(models.Model):
     pod = models.ForeignKey('Pod', on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
-    memory_limit_mb = models.PositiveIntegerField(blank=True, null=True)
-    cpu_request = models.PositiveIntegerField(blank=True, null=True)
+    memory_limit_mi = models.PositiveIntegerField(blank=True, null=True)
+    cpu_request_m = models.PositiveIntegerField(blank=True, null=True)
 
     class Meta:
         unique_together = ('pod', 'name')
@@ -50,8 +50,8 @@ class Container(models.Model):
 class ResourceUsage(models.Model):
     container = models.ForeignKey('Container', on_delete=models.CASCADE)
     measured_at = models.DateTimeField()
-    memory_mb = models.PositiveIntegerField(blank=True, null=True)
-    cpu = models.PositiveIntegerField(blank=True, null=True)
+    memory_mi = models.PositiveIntegerField(blank=True, null=True)
+    cpu_m = models.PositiveIntegerField(blank=True, null=True)
 
 
 class OOMEvent(models.Model):
@@ -65,10 +65,10 @@ class OOMEvent(models.Model):
 class Adjustment(models.Model):
     workload = models.ForeignKey('Workload', on_delete=models.CASCADE)
     done_at = models.DateTimeField()
-    pre_memory_limit_mb = models.PositiveIntegerField(blank=True, null=True)
-    new_memory_limit_mb = models.PositiveIntegerField(blank=True, null=True)
-    pre_cpu_request = models.PositiveIntegerField(blank=True, null=True)
-    new_cpu_request = models.PositiveIntegerField(blank=True, null=True)
+    pre_memory_limit_mi = models.PositiveIntegerField(blank=True, null=True)
+    new_memory_limit_mi = models.PositiveIntegerField(blank=True, null=True)
+    pre_cpu_request_m = models.PositiveIntegerField(blank=True, null=True)
+    new_cpu_request_m = models.PositiveIntegerField(blank=True, null=True)
 
 
 # see https://docs.djangoproject.com/en/3.0/topics/db/multi-db/#an-example
