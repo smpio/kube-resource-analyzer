@@ -4,6 +4,7 @@ import threading
 
 import kubernetes
 import kubernetes.client.rest
+from kubernetes.utils import parse_quantity
 from django.utils import timezone
 
 from utils.kubernetes.watch import KubeWatcher, WatchEventType
@@ -93,7 +94,16 @@ class HandlerThread(threading.Thread):
             log.warning('Failed to get workload for pod %s/%s',
                         pod.metadata.namespace, pod.metadata.name, exc_info=True)
 
-        models.Pod.objects.update_or_create(uid=pod.metadata.uid, defaults=data)
+        mypod, _ = models.Pod.objects.update_or_create(uid=pod.metadata.uid, defaults=data)
+
+        for container in pod.spec.containers:
+            container_data = {}
+            if container.resources:
+                if container.resources.limits:
+                    container_data['memory_limit_mb'] = parse_memory_quantity(container.resources.limits.get('memory'))
+                if container.resources.requests:
+                    container_data['cpu_request'] = parse_cpu_quantity(container.resources.requests.get('cpu'))
+            models.Container.objects.update_or_create(pod=mypod, name=container.name, defaults=container_data)
 
     def initial_cleanup(self):
         qs = models.Pod.objects.filter(gone_at=None).exclude(uid__in=self.initial_pods)
@@ -150,6 +160,18 @@ def kind_to_read_func(kind):
         return kubernetes.client.BatchV1Api().read_namespaced_job
     else:
         raise Exception('Unknown controller kind: %s', kind)
+
+
+def parse_memory_quantity(q):
+    if q is None:
+        return None
+    return parse_quantity(q) / 1024 / 1024
+
+
+def parse_cpu_quantity(q):
+    if q is None:
+        return None
+    return parse_quantity(q) * 1000
 
 
 if __name__ == '__main__':
