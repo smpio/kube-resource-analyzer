@@ -75,8 +75,8 @@ class HandlerThread(threading.Thread):
                 data['workload'] = get_workload_from_pod(pod)
             except kubernetes.client.rest.ApiException as e:
                 if e.status == 404:
-                    log.warning('Failed to get workload for pod %s/%s: Not Found',
-                                pod.metadata.namespace, pod.metadata.name)
+                    log.info('Failed to get workload for pod %s/%s: Not Found',
+                             pod.metadata.namespace, pod.metadata.name)
                 else:
                     raise e
         except Exception:
