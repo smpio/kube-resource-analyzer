@@ -44,8 +44,8 @@ class HandlerThread(threading.Thread):
             try:
                 self.handle_event(event_type, pod)
             except Exception:
-                log.error('Failed to handle %s on pod %s/%s',
-                          event_type.name, pod.metadata.namespace, pod.metadata.name)
+                log.exception('Failed to handle %s on pod %s/%s',
+                              event_type.name, pod.metadata.namespace, pod.metadata.name)
 
     def handle_event(self, event_type, pod):
         log.info('%s %s/%s', event_type.name, pod.metadata.namespace, pod.metadata.name)
