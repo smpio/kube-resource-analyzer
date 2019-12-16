@@ -21,8 +21,6 @@ def main():
     configuration.host = 'http://127.0.0.1:8001'
     kubernetes.client.Configuration.set_default(configuration)
 
-    # TODO: get initial pods on startup and mark others as gone
-
     q = queue.Queue()
     handler = HandlerThread(q)
     handler.start()
@@ -37,17 +35,29 @@ class HandlerThread(threading.Thread):
     def __init__(self, queue):
         super().__init__(daemon=True)
         self.queue = queue
+        self.initial_pods = set()
+        self.handle = self.handle_initial_event
 
     def run(self):
         while True:
             event_type, pod = self.queue.get()
             try:
-                self.handle_event(event_type, pod)
+                self.handle(event_type, pod)
             except Exception:
                 log.exception('Failed to handle %s on pod %s/%s',
                               event_type.name, pod.metadata.namespace, pod.metadata.name)
 
-    def handle_event(self, event_type, pod):
+    def handle_initial_event(self, event_type, pod):
+        if event_type == WatchEventType.ADDED:
+            self.initial_pods.add(pod.metadata.uid)
+
+        if event_type == WatchEventType.DONE_INITIAL:
+            self.handle = self.handle_normal_event
+            self.initial_cleanup()
+        else:
+            self.handle_normal_event(event_type, pod)
+
+    def handle_normal_event(self, event_type, pod):
         log.info('%s %s/%s', event_type.name, pod.metadata.namespace, pod.metadata.name)
 
         if event_type in (WatchEventType.ADDED, WatchEventType.MODIFIED):
@@ -84,6 +94,12 @@ class HandlerThread(threading.Thread):
                         pod.metadata.namespace, pod.metadata.name, exc_info=True)
 
         models.Pod.objects.update_or_create(uid=pod.metadata.uid, defaults=data)
+
+    def initial_cleanup(self):
+        qs = models.Pod.objects.filter(gone_at=None).exclude(uid__in=self.initial_pods)
+        count = qs.update(gone_at=timezone.now())
+        log.info('Marked %d pods as gone', count)
+        del self.initial_pods
 
 
 def get_workload_from_pod(pod):
