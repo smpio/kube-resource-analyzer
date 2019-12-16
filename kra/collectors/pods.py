@@ -73,43 +73,49 @@ class HandlerThread(threading.Thread):
         if pod.status.start_time is None:
             # Pod is creating, and not started yet
             return
-
-        data = {
-            'namespace': pod.metadata.namespace,
-            'name': pod.metadata.name,
-            'spec_hash': '?',  # TODO
-            'started_at': pod.status.start_time,
-        }
-
-        try:
-            try:
-                data['workload'] = get_workload_from_pod(pod)
-            except kubernetes.client.rest.ApiException as e:
-                if e.status == 404:
-                    log.info('Failed to get workload for pod %s/%s: Not Found',
-                             pod.metadata.namespace, pod.metadata.name)
-                else:
-                    raise e
-        except Exception:
-            log.warning('Failed to get workload for pod %s/%s',
-                        pod.metadata.namespace, pod.metadata.name, exc_info=True)
-
-        mypod, _ = models.Pod.objects.update_or_create(uid=pod.metadata.uid, defaults=data)
-
-        for container in pod.spec.containers:
-            container_data = {}
-            if container.resources:
-                if container.resources.limits:
-                    container_data['memory_limit_mb'] = parse_memory_quantity(container.resources.limits.get('memory'))
-                if container.resources.requests:
-                    container_data['cpu_request'] = parse_cpu_quantity(container.resources.requests.get('cpu'))
-            models.Container.objects.update_or_create(pod=mypod, name=container.name, defaults=container_data)
+        update_pod(pod)
 
     def initial_cleanup(self):
         qs = models.Pod.objects.filter(gone_at=None).exclude(uid__in=self.initial_pods)
         count = qs.update(gone_at=timezone.now())
         log.info('Marked %d pods as gone', count)
         del self.initial_pods
+
+
+def update_pod(pod):
+    data = {
+        'namespace': pod.metadata.namespace,
+        'name': pod.metadata.name,
+        'spec_hash': '?',  # TODO
+        'started_at': pod.status.start_time,
+    }
+
+    try:
+        try:
+            data['workload'] = get_workload_from_pod(pod)
+        except kubernetes.client.rest.ApiException as e:
+            if e.status == 404:
+                log.info('Failed to get workload for pod %s/%s: Not Found',
+                         pod.metadata.namespace, pod.metadata.name)
+            else:
+                raise e
+    except Exception:
+        log.warning('Failed to get workload for pod %s/%s',
+                    pod.metadata.namespace, pod.metadata.name, exc_info=True)
+
+    mypod, _ = models.Pod.objects.update_or_create(uid=pod.metadata.uid, defaults=data)
+    update_containers(pod, mypod)
+
+
+def update_containers(pod, mypod):
+    for container in pod.spec.containers:
+        container_data = {}
+        if container.resources:
+            if container.resources.limits:
+                container_data['memory_limit_mb'] = parse_memory_quantity(container.resources.limits.get('memory'))
+            if container.resources.requests:
+                container_data['cpu_request'] = parse_cpu_quantity(container.resources.requests.get('cpu'))
+        models.Container.objects.update_or_create(pod=mypod, name=container.name, defaults=container_data)
 
 
 def get_workload_from_pod(pod):
