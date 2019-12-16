@@ -6,10 +6,10 @@ import kubernetes
 import kubernetes.client.rest
 from django.utils import timezone
 
+from utils.kubernetes.watch import KubeWatcher, WatchEventType
 from utils.signal import install_shutdown_signal_handlers
 
 from kra import models
-from kra import kube_watch
 
 log = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ def main():
 
     v1 = kubernetes.client.CoreV1Api()
 
-    for event_type, pod in kube_watch.watch(v1.list_pod_for_all_namespaces):
+    for event_type, pod in KubeWatcher(v1.list_pod_for_all_namespaces):
         q.put((event_type, pod))
 
 
@@ -50,9 +50,9 @@ class HandlerThread(threading.Thread):
     def handle_event(self, event_type, pod):
         log.info('%s %s/%s', event_type.name, pod.metadata.namespace, pod.metadata.name)
 
-        if event_type in (kube_watch.EventType.ADDED, kube_watch.EventType.MODIFIED):
+        if event_type in (WatchEventType.ADDED, WatchEventType.MODIFIED):
             self.handle_update(pod)
-        elif event_type == kube_watch.EventType.DELETED:
+        elif event_type == WatchEventType.DELETED:
             self.handle_delete(pod)
 
     def handle_delete(self, pod):
