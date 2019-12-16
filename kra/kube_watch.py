@@ -26,7 +26,7 @@ class KubeWatcher:
         self.resource_version = None
         self.db = {}
 
-    def run(self):
+    def __iter__(self):
         while True:
             try:
                 obj_list = self.list_func()
@@ -123,4 +123,4 @@ class RestartWatchException(Exception):
 
 
 def watch(list_func):
-    return KubeWatcher(list_func).run()
+    return KubeWatcher(list_func)
