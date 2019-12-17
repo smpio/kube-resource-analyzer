@@ -1,13 +1,13 @@
 import time
 import logging
-import threading
 from datetime import timedelta
 
 import kubernetes
 import kubernetes.client.rest
 from django.utils import timezone
 
-from utils.kubernetes.watch import KubeWatcher, WatchEventType
+from utils.threading import SupervisedThread, SupervisedThreadGroup
+from utils.kubernetes.watch import KubeWatcher
 from utils.signal import install_shutdown_signal_handlers
 
 from kra import models, kube_config
@@ -22,20 +22,30 @@ def main():
     v1 = kubernetes.client.CoreV1Api()
     watcher = KubeWatcher(v1.list_node)
 
-    collector = CollectorThread(watcher.db)
+    threads = SupervisedThreadGroup()
+    threads.add_thread(WatcherThread(watcher))
+    threads.add_thread(CollectorThread(watcher.db))
+    threads.start_all()
+    threads.wait_any()
 
-    for event_name, node in watcher:
-        if event_name == WatchEventType.DONE_INITIAL:
-            collector.start()
+
+class WatcherThread(SupervisedThread):
+    def __init__(self, watcher):
+        super().__init__()
+        self.watcher = watcher
+
+    def run_supervised(self):
+        for _ in self.watcher:
+            pass
 
 
-class CollectorThread(threading.Thread):
+class CollectorThread(SupervisedThread):
     def __init__(self, node_db, collect_interval=timedelta(minutes=1)):
-        super().__init__(daemon=True)
+        super().__init__()
         self.node_db = node_db
         self.collect_interval = collect_interval
 
-    def run(self):
+    def run_supervised(self):
         while True:
             start = timezone.now()
             self.collect()

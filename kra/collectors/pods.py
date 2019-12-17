@@ -1,12 +1,12 @@
 import queue
 import logging
-import threading
 
 import kubernetes
 import kubernetes.client.rest
 from kubernetes.utils import parse_quantity
 from django.utils import timezone
 
+from utils.threading import SupervisedThread, SupervisedThreadGroup
 from utils.kubernetes.watch import KubeWatcher, WatchEventType
 from utils.signal import install_shutdown_signal_handlers
 
@@ -20,23 +20,32 @@ def main():
     kube_config.init()
 
     q = queue.Queue()
-    handler = HandlerThread(q)
-    handler.start()
-
-    v1 = kubernetes.client.CoreV1Api()
-
-    for event_type, pod in KubeWatcher(v1.list_pod_for_all_namespaces):
-        q.put((event_type, pod))
+    threads = SupervisedThreadGroup()
+    threads.add_thread(WatcherThread(q))
+    threads.add_thread(HandlerThread(q))
+    threads.start_all()
+    threads.wait_any()
 
 
-class HandlerThread(threading.Thread):
+class WatcherThread(SupervisedThread):
     def __init__(self, queue):
-        super().__init__(daemon=True)
+        super().__init__()
+        self.queue = queue
+
+    def run_supervised(self):
+        v1 = kubernetes.client.CoreV1Api()
+        for event_type, pod in KubeWatcher(v1.list_pod_for_all_namespaces):
+            self.queue.put((event_type, pod))
+
+
+class HandlerThread(SupervisedThread):
+    def __init__(self, queue):
+        super().__init__()
         self.queue = queue
         self.initial_pods = set()
         self.handle = self.handle_initial_event
 
-    def run(self):
+    def run_supervised(self):
         while True:
             event_type, pod = self.queue.get()
             try:
