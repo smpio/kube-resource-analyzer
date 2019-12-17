@@ -1,6 +1,7 @@
 import enum
 
 from django.db import models
+from django.utils import timezone
 from django.core.validators import MinValueValidator
 
 from utils.django.models import EnumField
@@ -49,7 +50,7 @@ class Container(models.Model):
 
 class ResourceUsage(models.Model):
     container = models.ForeignKey('Container', on_delete=models.CASCADE)
-    measured_at = models.DateTimeField()
+    measured_at = models.DateTimeField(default=timezone.now)
     memory_mi = models.PositiveIntegerField(blank=True, null=True)
     cpu_m = models.PositiveIntegerField(blank=True, null=True)
 
