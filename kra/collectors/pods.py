@@ -10,17 +10,14 @@ from django.utils import timezone
 from utils.kubernetes.watch import KubeWatcher, WatchEventType
 from utils.signal import install_shutdown_signal_handlers
 
-from kra import models
+from kra import models, kube_config
 
 log = logging.getLogger(__name__)
 
 
 def main():
     install_shutdown_signal_handlers()
-
-    configuration = kubernetes.client.Configuration()
-    configuration.host = 'http://127.0.0.1:8001'
-    kubernetes.client.Configuration.set_default(configuration)
+    kube_config.init()
 
     q = queue.Queue()
     handler = HandlerThread(q)
