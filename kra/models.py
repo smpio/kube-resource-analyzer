@@ -53,6 +53,7 @@ class ResourceUsage(models.Model):
     measured_at = models.DateTimeField(default=timezone.now)
     memory_mi = models.PositiveIntegerField(blank=True, null=True)
     cpu_m = models.PositiveIntegerField(blank=True, null=True)
+    cpu_m_seconds = models.BigIntegerField(blank=True, null=True)
 
 
 class OOMEvent(models.Model):

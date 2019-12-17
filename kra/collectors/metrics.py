@@ -93,8 +93,19 @@ class CollectorThread(SupervisedThread):
             if not container:
                 log.debug('Container %s not found for pod %s', container_metrics['name'], pod_uid)
                 continue
+
+            prev_usage = models.ResourceUsage.objects.filter(container=container).order_by('-measured_at').first()
+            now = timezone.now()
+
             usage = models.ResourceUsage(container=container)
+            usage.measured_at = now
             usage.memory_mi = container_metrics['memory']['workingSetBytes'] / 1024 / 1024 + 1
-            # TODO: use usageCoreNanoSeconds and compare with prev value
-            usage.cpu_m = container_metrics['cpu']['usageNanoCores'] / 1000
+            usage.cpu_m_seconds = container_metrics['cpu']['usageCoreNanoSeconds'] / 1000000
+
+            if prev_usage and prev_usage.cpu_m_seconds:
+                delta_seconds = (now - prev_usage.measured_at).total_seconds()
+                cpu_m = (usage.cpu_m_seconds - prev_usage.cpu_m_seconds) / delta_seconds
+                if cpu_m >= 0:
+                    usage.cpu_m = cpu_m
+
             usage.save()
