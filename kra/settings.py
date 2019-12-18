@@ -18,11 +18,9 @@ else:
 KUBE_API_PROXY = env('KUBE_API_PROXY')
 KUBE_IN_CLUSTER = env('KUBE_IN_CLUSTER')
 
-
 if env('PS_DATABASE_URL'):
     DATABASES['ps'] = env.db_url('PS_DATABASE_URL')
-
-
 DATABASE_ROUTERS = ['kra.db_routers.PSRouter']
+REST_FRAMEWORK['DEFAULT_PAGINATION_CLASS'] = None
 
 MAX_RETENTION = datetime.timedelta(days=env('MAX_RETENTION_DAYS'))
