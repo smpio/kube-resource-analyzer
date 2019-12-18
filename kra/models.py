@@ -41,11 +41,15 @@ class Pod(models.Model):
 class Container(models.Model):
     pod = models.ForeignKey('Pod', on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
+    runtime_id = models.CharField(max_length=255)
     memory_limit_mi = models.PositiveIntegerField(blank=True, null=True)
     cpu_request_m = models.PositiveIntegerField(blank=True, null=True)
 
     class Meta:
-        unique_together = ('pod', 'name')
+        unique_together = [
+            ('pod', 'name'),
+            ('pod', 'runtime_id'),
+        ]
 
 
 class ResourceUsage(models.Model):

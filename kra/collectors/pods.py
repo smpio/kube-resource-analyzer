@@ -1,3 +1,4 @@
+import re
 import queue
 import logging
 
@@ -13,6 +14,7 @@ from utils.signal import install_shutdown_signal_handlers
 from kra import models, kube_config
 
 log = logging.getLogger(__name__)
+container_runtime_id_re = re.compile(r'^\w+://(.+)$')
 
 MEBIBYTE = 1024 * 1024
 
@@ -116,14 +118,29 @@ def update_pod(pod):
 
 
 def update_containers(pod, mypod):
+    mycontainers = {}
+
     for container in pod.spec.containers:
-        container_data = {}
+        data = {}
         if container.resources:
             if container.resources.limits:
-                container_data['memory_limit_mi'] = parse_memory_quantity(container.resources.limits.get('memory'))
+                data['memory_limit_mi'] = parse_memory_quantity(container.resources.limits.get('memory'))
             if container.resources.requests:
-                container_data['cpu_request_m'] = parse_cpu_quantity(container.resources.requests.get('cpu'))
-        models.Container.objects.update_or_create(pod=mypod, name=container.name, defaults=container_data)
+                data['cpu_request_m'] = parse_cpu_quantity(container.resources.requests.get('cpu'))
+
+        mycontainers[container.name] = data
+
+    for container_status in pod.status.container_statuses:
+        if not container_status.container_id:
+            # container is terminating
+            continue
+        runtime_id = parse_container_runtime_id(container_status.container_id)
+        if runtime_id is None:
+            raise Exception(f'No runtime id for container {container_status.name}')
+        mycontainers[container_status.name]['runtime_id'] = runtime_id
+
+    for name, data in mycontainers.items():
+        models.Container.objects.update_or_create(pod=mypod, name=name, defaults=data)
 
 
 def get_workload_from_pod(pod):
@@ -186,6 +203,13 @@ def parse_cpu_quantity(q):
     if q is None:
         return None
     return parse_quantity(q) * 1000
+
+
+def parse_container_runtime_id(container_id):
+    match = container_runtime_id_re.match(container_id)
+    if match is None:
+        return None
+    return match.group(1)
 
 
 if __name__ == '__main__':
