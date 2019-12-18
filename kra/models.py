@@ -73,8 +73,9 @@ class Adjustment(models.Model):
     new_cpu_request_m = models.PositiveIntegerField(blank=True, null=True)
 
 
-# see https://docs.djangoproject.com/en/3.0/topics/db/multi-db/#an-example
 class PSRecord(models.Model):
+    """External database model"""
+
     ts = models.DateTimeField(primary_key=True)
     hostname = models.TextField()
     pid = models.BigIntegerField()
