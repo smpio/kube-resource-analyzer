@@ -14,6 +14,8 @@ from kra import models, kube_config
 
 log = logging.getLogger(__name__)
 
+MEBIBYTE = 1024 * 1024
+
 
 def main():
     install_shutdown_signal_handlers()
@@ -177,7 +179,7 @@ def kind_to_read_func(kind):
 def parse_memory_quantity(q):
     if q is None:
         return None
-    return parse_quantity(q) / 1024 / 1024
+    return parse_quantity(q) / MEBIBYTE
 
 
 def parse_cpu_quantity(q):

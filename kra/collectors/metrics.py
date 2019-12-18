@@ -14,6 +14,8 @@ from kra import models, kube_config
 
 log = logging.getLogger(__name__)
 
+MEBIBYTE = 1024 * 1024
+
 
 def main():
     install_shutdown_signal_handlers()
@@ -99,7 +101,7 @@ class CollectorThread(SupervisedThread):
 
             usage = models.ResourceUsage(container=container)
             usage.measured_at = now
-            usage.memory_mi = container_metrics['memory']['workingSetBytes'] / 1024 / 1024 + 1
+            usage.memory_mi = container_metrics['memory']['workingSetBytes'] / MEBIBYTE + 1
             usage.cpu_m_seconds = container_metrics['cpu']['usageCoreNanoSeconds'] / 1000000
 
             if prev_usage and prev_usage.cpu_m_seconds:
