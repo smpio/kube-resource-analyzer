@@ -63,8 +63,10 @@ class ResourceUsage(models.Model):
 class OOMEvent(models.Model):
     container = models.ForeignKey('Container', on_delete=models.CASCADE)
     happened_at = models.DateTimeField()
-    pid = models.BigIntegerField()
-    comm = models.CharField(max_length=32)
+    target_pid = models.BigIntegerField(blank=True, null=True)
+    victim_pid = models.BigIntegerField(blank=True, null=True)
+    target_comm = models.CharField(max_length=32, blank=True)
+    victim_comm = models.CharField(max_length=32, blank=True)
 
 
 # maybe add resource kind enum
