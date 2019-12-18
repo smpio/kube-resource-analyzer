@@ -1,8 +1,11 @@
 # flake8: noqa: F405
 
+import datetime
 from utils.django.settings import *
 
 env.scheme['PS_DATABASE_URL'] = (str, None)
+env.scheme['MAX_RETENTION_DAYS'] = (int, 30)
+
 
 if env('DEV_ENV'):
     env.scheme['KUBE_API_PROXY'] = (str, 'http://127.0.0.1:8001')
@@ -21,3 +24,5 @@ if env('PS_DATABASE_URL'):
 
 
 DATABASE_ROUTERS = ['kra.db_routers.PSRouter']
+
+MAX_RETENTION = datetime.timedelta(days=env('MAX_RETENTION_DAYS'))
