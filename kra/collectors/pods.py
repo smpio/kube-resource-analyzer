@@ -135,11 +135,13 @@ def update_containers(pod, mypod):
             # container is terminating
             continue
         runtime_id = parse_container_runtime_id(container_status.container_id)
-        if runtime_id is None:
-            raise Exception(f'No runtime id for container {container_status.name}')
         mycontainers[container_status.name]['runtime_id'] = runtime_id
 
     for name, data in mycontainers.items():
+        if not data.get('runtime_id'):
+            log.error(f'No runtime id for container {name}')
+            continue
+
         models.Container.objects.update_or_create(pod=mypod, name=name, defaults=data)
 
 
