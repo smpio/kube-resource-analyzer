@@ -77,9 +77,14 @@ class CollectorThread(SupervisedThread):
 
     def scrap_node(self, node):
         client = kubernetes.client.ApiClient()
-        response = client.call_api('/api/v1/nodes/{node}/proxy/stats/summary', 'GET', path_params={
-            'node': node.metadata.name,
-        }, response_type='object')
+        response = client.call_api(
+            '/api/v1/nodes/{node}/proxy/stats/summary', 'GET',
+            path_params={
+                'node': node.metadata.name,
+            },
+            auth_settings=['BearerToken'],
+            response_type='object'
+        )
         return response[0]
 
     def collect_pod(self, pod_metrics):
