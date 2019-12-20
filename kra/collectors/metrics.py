@@ -60,7 +60,8 @@ class CollectorThread(SupervisedThread):
                 time.sleep(to_wait_seconds)
 
     def collect(self):
-        for node in self.node_db.values():
+        nodes = list(self.node_db.values())
+        for node in nodes:
             try:
                 self.collect_node(node)
             except Exception:
