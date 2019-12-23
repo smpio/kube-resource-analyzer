@@ -139,7 +139,7 @@ def update_containers(pod, mypod):
 
     for name, data in mycontainers.items():
         if not data.get('runtime_id'):
-            log.error(f'No runtime id for container {name}')
+            log.info(f'No runtime id for container {name}')
             continue
 
         models.Container.objects.update_or_create(pod=mypod, name=name, defaults=data)

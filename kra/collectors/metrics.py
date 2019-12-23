@@ -95,6 +95,10 @@ class CollectorThread(SupervisedThread):
             # this is strange pod uid used for for all kube-proxy pods in stats
             return
 
+        if not pod_metrics.get('containers'):
+            log.info('No container metrics for pod %(namespace)s/%(name)s', pod_metrics['podRef'])
+            return
+
         containers = {c.name: c for c in models.Container.objects.filter(pod__uid=pod_uid)}
         for container_metrics in pod_metrics['containers']:
             container = containers.get(container_metrics['name'])
