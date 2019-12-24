@@ -74,16 +74,27 @@ class HandlerThread(SupervisedThread):
         match = victim_message_re.search(event.message)
         if not match:
             raise Exception(f'No victim PID in message "{event.message}"')
-        oom.victim_pid, oom.victim_comm = int(match.group(1)), match.group(2)
+        victim_pid, oom.victim_comm = int(match.group(1)), match.group(2)
 
         match = target_message_re.search(event.message)
         if not match:
             raise Exception(f'No target PID in message "{event.message}"')
-        oom.target_pid, oom.target_comm = int(match.group(1)), match.group(2)
+        target_pid, oom.target_comm = int(match.group(1)), match.group(2)
 
-        ps_record = get_ps_record(event, oom.target_pid)
+        target_ps_record = get_ps_record(event, target_pid)
+        if target_ps_record is not None:
+            oom.target_pid = target_ps_record.nspid
+
+        if victim_pid == target_pid:
+            victim_ps_record = target_ps_record
+        else:
+            victim_ps_record = get_ps_record(event, victim_pid)
+        if victim_ps_record is not None:
+            oom.victim_pid = victim_ps_record.nspid
+
+        ps_record = target_ps_record or victim_ps_record
         if ps_record is None:
-            raise Exception(f'No ps record for node {node} and PID {oom.target_pid}')
+            raise Exception(f'No ps records for node {node} and PIDs {target_pid}, {victim_pid}')
 
         pod_uid, container_runtime_id = parse_cgroup(ps_record.cgroup)
         if pod_uid is None or container_runtime_id is None:
