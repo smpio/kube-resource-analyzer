@@ -28,6 +28,9 @@ class Workload(models.Model):
     class Meta:
         unique_together = ('kind', 'namespace', 'name')
 
+    def __str__(self):
+        return f'{self.kind.name} {self.namespace}/{self.name}'
+
 
 class Pod(models.Model):
     uid = models.UUIDField(unique=True)
@@ -37,6 +40,9 @@ class Pod(models.Model):
     spec_hash = models.CharField(max_length=32)  # maybe add WorkloadRevision proxy model
     started_at = models.DateTimeField()
     gone_at = models.DateTimeField(blank=True, null=True)
+
+    def __str__(self):
+        return f'{self.namespace}/{self.name}'
 
 
 class Container(models.Model):
@@ -51,6 +57,9 @@ class Container(models.Model):
             ('pod', 'name'),
             ('pod', 'runtime_id'),
         ]
+
+    def __str__(self):
+        return f'{self.pod} {self.name}'
 
 
 class ResourceUsage(models.Model):
