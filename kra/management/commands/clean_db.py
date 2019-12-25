@@ -36,6 +36,8 @@ class Command(BaseCommand):
         vacuum(models.Workload)
         log.info('Deleted %d workloads', deleted)
 
+        vacuum(models.Investigation)
+
 
 def vacuum(model):
     with connection.cursor() as c:

@@ -24,3 +24,4 @@ DATABASE_ROUTERS = ['kra.db_routers.PSRouter']
 REST_FRAMEWORK['DEFAULT_PAGINATION_CLASS'] = None
 
 MAX_RETENTION = datetime.timedelta(days=env('MAX_RETENTION_DAYS'))
+MAX_INVESTIGATION_AGE = datetime.timedelta(hours=1)

@@ -1,6 +1,7 @@
 import enum
 
 from django.db import models
+from django.conf import settings
 from django.utils import timezone
 from django.core.validators import MinValueValidator
 
@@ -77,6 +78,39 @@ class Adjustment(models.Model):
     new_memory_limit_mi = models.PositiveIntegerField(blank=True, null=True)
     pre_cpu_request_m = models.PositiveIntegerField(blank=True, null=True)
     new_cpu_request_m = models.PositiveIntegerField(blank=True, null=True)
+
+
+class Investigation(models.Model):
+    workload = models.ForeignKey('Workload', on_delete=models.CASCADE)
+    container_name = models.CharField(max_length=255)
+    done_at = models.DateTimeField(auto_now=True)
+
+    max_memory_mi = models.PositiveIntegerField(blank=True, null=True)
+    memory_limit_mi = models.PositiveIntegerField(blank=True, null=True)
+
+    avg_cpu_m = models.PositiveIntegerField(blank=True, null=True)
+    cpu_request_m = models.PositiveIntegerField(blank=True, null=True)
+
+    class Meta:
+        unique_together = ('workload', 'container_name')
+
+    @staticmethod
+    def get_all(force_update=False):
+        from kra.tasks import make_investigations
+
+        if not force_update:
+            max_age = settings.MAX_INVESTIGATION_AGE
+            last_investigation = Investigation.objects.order_by('done_at').last()
+            if last_investigation is None:
+                force_update = True
+            else:
+                force_update = timezone.now() - last_investigation.done_at > max_age
+
+        if force_update:
+            yield from make_investigations()
+        else:
+            yield from Investigation.objects.order_by('workload__namespace', 'workload__name')\
+                .select_related('workload')
 
 
 class PSRecord(models.Model):
