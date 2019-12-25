@@ -29,3 +29,14 @@ class Command(BaseCommand):
                 if stat.cpu_request_m:
                     msg += f' / {stat.cpu_request_m}m'
                 print(msg)
+
+            oom_qs = models.OOMEvent.objects.filter(container__pod__workload=stat.workload,
+                                                    container__name=stat.container_name).order_by('happened_at')
+            for oom in oom_qs:
+                msg = f'  OOM {oom.happened_at}'
+                if oom.target_pid:
+                    msg += f' target:{oom.target_comm}({oom.target_pid})'
+                if oom.victim_pid:
+                    msg += f' victim:{oom.victim_comm}({oom.victim_pid})'
+                msg += f' limit:{oom.container.memory_limit_mi} Mi'
+                print(msg)
