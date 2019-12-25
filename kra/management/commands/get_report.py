@@ -10,8 +10,11 @@ log = logging.getLogger(__name__)
 class Command(BaseCommand):
     help = 'Analyze and get report'
 
+    def add_arguments(self, parser):
+        parser.add_argument('--force-update', action='store_true', help='Force analytics update')
+
     def handle(self, *args, **options):
-        for stat in models.Investigation.get_all():
+        for stat in models.Investigation.get_all(options['force_update']):
             print(f'{stat.workload.kind.name} {stat.workload.namespace}/{stat.workload.name}'
                   f' (container {stat.container_name})')
 
