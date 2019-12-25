@@ -122,6 +122,27 @@ class Investigation(models.Model):
                 .select_related('workload')
 
 
+class Suggestion(models.Model):
+    workload = models.ForeignKey('Workload', on_delete=models.CASCADE)
+    container_name = models.CharField(max_length=255)
+    done_at = models.DateTimeField(auto_now=True)
+
+    new_memory_limit_mi = models.PositiveIntegerField(blank=True, null=True)
+    new_cpu_request_m = models.PositiveIntegerField(blank=True, null=True)
+
+    reason = models.TextField(blank=True)
+    priority = models.IntegerField(default=100)
+
+    class Meta:
+        unique_together = ('workload', 'container_name')
+
+    @staticmethod
+    def get_all(force_update=False):
+        from kra.tasks import make_suggestions
+        make_suggestions(force_update_investigations=force_update)
+        return Suggestion.objects.order_by('-priority')
+
+
 class PSRecord(models.Model):
     """External database model"""
 
