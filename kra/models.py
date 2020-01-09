@@ -123,24 +123,21 @@ class Summary(models.Model):
 
 
 class Suggestion(models.Model):
-    workload = models.ForeignKey('Workload', on_delete=models.CASCADE)
-    container_name = models.CharField(max_length=255)
+    summary = models.OneToOneField('Summary', on_delete=models.CASCADE)
     done_at = models.DateTimeField(auto_now=True)
 
     new_memory_limit_mi = models.PositiveIntegerField(blank=True, null=True)
     new_cpu_request_m = models.PositiveIntegerField(blank=True, null=True)
 
     reason = models.TextField(blank=True)
-    priority = models.IntegerField(default=100)
-
-    class Meta:
-        unique_together = ('workload', 'container_name')
+    priority = models.IntegerField(default=0)
 
     @staticmethod
     def get_all(force_update=False):
         from kra.tasks import make_suggestions
-        make_suggestions(force_update_summary=force_update)
-        return Suggestion.objects.order_by('-priority')
+        if force_update:
+            make_suggestions(force_update=force_update)
+        return Suggestion.objects.exclude(priority=0).order_by('-priority')
 
 
 class PSRecord(models.Model):
