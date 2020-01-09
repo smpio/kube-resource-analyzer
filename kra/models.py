@@ -89,7 +89,7 @@ class Adjustment(models.Model):
     new_cpu_request_m = models.PositiveIntegerField(blank=True, null=True)
 
 
-class Investigation(models.Model):
+class Summary(models.Model):
     workload = models.ForeignKey('Workload', on_delete=models.CASCADE)
     container_name = models.CharField(max_length=255)
     done_at = models.DateTimeField(auto_now=True)
@@ -105,20 +105,20 @@ class Investigation(models.Model):
 
     @staticmethod
     def get_all(force_update=False):
-        from kra.tasks import make_investigations
+        from kra.tasks import make_summary
 
         if not force_update:
-            max_age = settings.MAX_INVESTIGATION_AGE
-            last_investigation = Investigation.objects.order_by('done_at').last()
-            if last_investigation is None:
+            max_age = settings.MAX_SUMMARY_AGE
+            last_summary = Summary.objects.order_by('done_at').last()
+            if last_summary is None:
                 force_update = True
             else:
-                force_update = timezone.now() - last_investigation.done_at > max_age
+                force_update = timezone.now() - last_summary.done_at > max_age
 
         if force_update:
-            yield from make_investigations()
+            yield from make_summary()
         else:
-            yield from Investigation.objects.order_by('workload__namespace', 'workload__name')\
+            yield from Summary.objects.order_by('workload__namespace', 'workload__name')\
                 .select_related('workload')
 
 
@@ -139,7 +139,7 @@ class Suggestion(models.Model):
     @staticmethod
     def get_all(force_update=False):
         from kra.tasks import make_suggestions
-        make_suggestions(force_update_investigations=force_update)
+        make_suggestions(force_update_summary=force_update)
         return Suggestion.objects.order_by('-priority')
 
 

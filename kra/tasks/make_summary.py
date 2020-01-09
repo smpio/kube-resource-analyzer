@@ -9,8 +9,8 @@ log = logging.getLogger(__name__)
 
 
 @transaction.atomic
-def make_investigations():
-    models.Investigation.objects.all().delete()
+def make_summary():
+    models.Summary.objects.all().delete()
 
     for wl in models.Workload.objects.order_by('namespace', 'name'):
         resource_usage_qs = models.ResourceUsage.objects\
@@ -19,7 +19,7 @@ def make_investigations():
             .annotate(max_memory_mi=Max('memory_mi'), avg_cpu_m=Avg('cpu_m'))
 
         for cu in resource_usage_qs:
-            stat = models.Investigation(workload=wl, container_name=cu['container__name'])
+            stat = models.Summary(workload=wl, container_name=cu['container__name'])
             stat.max_memory_mi = cu['max_memory_mi']
             if cu['avg_cpu_m'] is not None:
                 stat.avg_cpu_m = int(cu['avg_cpu_m'])

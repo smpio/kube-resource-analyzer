@@ -1,2 +1,2 @@
-from .make_investigations import make_investigations  # noqa
+from .make_summary import make_summary  # noqa
 from .make_suggestions import make_suggestions  # noqa

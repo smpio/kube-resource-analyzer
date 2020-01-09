@@ -9,10 +9,10 @@ log = logging.getLogger(__name__)
 
 
 @transaction.atomic
-def make_suggestions(force_update_investigations=False):
+def make_suggestions(force_update_summary=False):
     models.Suggestion.objects.all().delete()
 
-    for stat in models.Investigation.get_all(force_update_investigations):
+    for stat in models.Summary.get_all(force_update_summary):
         memory_reserve_multiplier = 1 + settings.BASE_MEMORY_RESERVE_FRACTION
 
         oom = models.OOMEvent.objects.filter(container__pod__workload=stat.workload,

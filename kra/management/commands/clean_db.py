@@ -36,7 +36,7 @@ class Command(BaseCommand):
         vacuum(models.Workload)
         log.info('Deleted %d workloads', deleted)
 
-        vacuum(models.Investigation)
+        vacuum(models.Summary)
         vacuum(models.Suggestion)
 
 

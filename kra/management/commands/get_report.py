@@ -14,7 +14,7 @@ class Command(BaseCommand):
         parser.add_argument('--force-update', action='store_true', help='Force analytics update')
 
     def handle(self, *args, **options):
-        for stat in models.Investigation.get_all(options['force_update']):
+        for stat in models.Summary.get_all(options['force_update']):
             print(f'{stat.workload.kind.name} {stat.workload.namespace}/{stat.workload.name}'
                   f' (container {stat.container_name})')
 
