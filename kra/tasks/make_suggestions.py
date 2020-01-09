@@ -17,7 +17,7 @@ def make_suggestions(force_update_summary=False):
 
         oom = models.OOMEvent.objects.filter(container__pod__workload=stat.workload,
                                              container__name=stat.container_name).order_by('happened_at').last()
-        if oom:
+        if oom and oom.container.memory_limit_mi:
             min_memory_limit = int(oom.container.memory_limit_mi * memory_reserve_multiplier) + 1
 
             if stat.memory_limit_mi < min_memory_limit:

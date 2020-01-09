@@ -38,5 +38,6 @@ class Command(BaseCommand):
                     msg += f' target:{oom.target_comm}({oom.target_pid})'
                 if oom.victim_pid:
                     msg += f' victim:{oom.victim_comm}({oom.victim_pid})'
-                msg += f' limit:{oom.container.memory_limit_mi} Mi'
+                if oom.container.memory_limit_mi:
+                    msg += f' limit:{oom.container.memory_limit_mi} Mi'
                 print(msg)
