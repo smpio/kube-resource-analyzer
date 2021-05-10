@@ -3,6 +3,8 @@
 import datetime
 from utils.django.settings import *
 
+CACHES['default'] = CACHES['locmem']
+
 env.scheme['PS_DATABASE_URL'] = (str, None)
 env.scheme['MAX_RETENTION_DAYS'] = (int, 30)
 
