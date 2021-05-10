@@ -97,6 +97,10 @@ class CollectorThread(SupervisedThread):
             log.info('No container metrics for pod %(namespace)s/%(name)s', pod_metrics['podRef'])
             return
 
+        if '-' not in pod_uid:
+            # skip pods started directly by kubelet
+            return
+
         containers = {c.name: c for c in models.Container.objects.filter(pod__uid=pod_uid)}
         for container_metrics in pod_metrics['containers']:
             container = containers.get(container_metrics['name'])
