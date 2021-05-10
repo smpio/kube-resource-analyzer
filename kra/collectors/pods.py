@@ -170,6 +170,8 @@ def get_owner_recursive(obj):
 
         read_func = kind_to_read_func(ref.kind)
         owner = read_func(name=ref.name, namespace=obj.metadata.namespace)
+        if owner is None:
+            return None
 
         superowner = get_owner_recursive(owner)
         if superowner is not None:
@@ -193,6 +195,8 @@ def kind_to_read_func(kind):
         return kubernetes.client.AppsV1Api().read_namespaced_stateful_set
     elif kind == 'Job':
         return kubernetes.client.BatchV1Api().read_namespaced_job
+    elif kind == 'Node':
+        return lambda name, ns: None
     else:
         raise Exception('Unknown controller kind: %s', kind)
 
