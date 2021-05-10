@@ -8,6 +8,7 @@ import kubernetes.client.rest
 from utils.threading import SupervisedThread, SupervisedThreadGroup
 from utils.kubernetes.watch import KubeWatcher, WatchEventType
 from utils.signal import install_shutdown_signal_handlers
+from utils.django.db import fix_long_connections
 
 from kra import models, kube_config
 
@@ -68,6 +69,8 @@ class HandlerThread(SupervisedThread):
                 log.exception('Failed to handle event on node %s', event.involved_object.name)
 
     def handle(self, event):
+        fix_long_connections()
+
         node = event.involved_object.name
         oom = models.OOMEvent(happened_at=event.last_timestamp)
 

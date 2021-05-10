@@ -9,6 +9,7 @@ from django.utils import timezone
 from utils.threading import SupervisedThread, SupervisedThreadGroup
 from utils.kubernetes.watch import KubeWatcher
 from utils.signal import install_shutdown_signal_handlers
+from utils.django.db import fix_long_connections
 
 from kra import models, kube_config
 
@@ -50,6 +51,7 @@ class CollectorThread(SupervisedThread):
     def run_supervised(self):
         while True:
             start = timezone.now()
+            fix_long_connections()
             self.collect()
             end = timezone.now()
             elapsed = end - start

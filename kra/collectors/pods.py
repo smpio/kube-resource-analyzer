@@ -10,6 +10,7 @@ from django.utils import timezone
 from utils.threading import SupervisedThread, SupervisedThreadGroup
 from utils.kubernetes.watch import KubeWatcher, WatchEventType
 from utils.signal import install_shutdown_signal_handlers
+from utils.django.db import retry_on_connection_close
 
 from kra import models, kube_config
 
@@ -68,6 +69,7 @@ class HandlerThread(SupervisedThread):
         else:
             self.handle_normal_event(event_type, pod)
 
+    @retry_on_connection_close()
     def handle_normal_event(self, event_type, pod):
         log.info('%s %s/%s', event_type.name, pod.metadata.namespace, pod.metadata.name)
 
