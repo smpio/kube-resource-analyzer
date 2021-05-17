@@ -69,6 +69,11 @@ class ResourceUsage(models.Model):
     cpu_m = models.PositiveIntegerField(blank=True, null=True)  # TODO: remove
     cpu_m_seconds = models.BigIntegerField(blank=True, null=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['measured_at']),
+        ]
+
 
 class OOMEvent(models.Model):
     container = models.ForeignKey('Container', on_delete=models.CASCADE)
@@ -77,6 +82,11 @@ class OOMEvent(models.Model):
     victim_pid = models.BigIntegerField(blank=True, null=True)
     target_comm = models.CharField(max_length=32, blank=True)
     victim_comm = models.CharField(max_length=32, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['happened_at']),
+        ]
 
 
 # maybe add resource kind enum
@@ -87,6 +97,11 @@ class Adjustment(models.Model):
     new_memory_limit_mi = models.PositiveIntegerField(blank=True, null=True)
     pre_cpu_request_m = models.PositiveIntegerField(blank=True, null=True)
     new_cpu_request_m = models.PositiveIntegerField(blank=True, null=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['done_at']),
+        ]
 
 
 class Summary(models.Model):
