@@ -66,7 +66,7 @@ class ResourceUsage(models.Model):
     container = models.ForeignKey('Container', on_delete=models.CASCADE)
     measured_at = models.DateTimeField(default=timezone.now)
     memory_mi = models.PositiveIntegerField(blank=True, null=True)
-    cpu_m = models.PositiveIntegerField(blank=True, null=True)
+    cpu_m = models.PositiveIntegerField(blank=True, null=True)  # TODO: remove
     cpu_m_seconds = models.BigIntegerField(blank=True, null=True)
 
 
