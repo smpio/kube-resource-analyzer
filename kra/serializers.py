@@ -1,6 +1,7 @@
 import datetime
 from collections import defaultdict
 
+from django.db.models import Q
 from rest_framework import serializers
 
 from utils.django.serializers.fields import ChoiceDisplayField
@@ -59,6 +60,7 @@ class WorkloadStatsSerializer(serializers.ModelSerializer):
 
         containers = models.Container.objects\
             .filter(pod__workload=workload)\
+            .filter(Q(pod__gone_at__gt=since) | Q(pod__gone_at=None))\
             .order_by('pod__started_at')\
             .select_related('pod')
 
