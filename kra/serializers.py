@@ -1,7 +1,7 @@
 import datetime
 from collections import defaultdict
 
-from django.db.models import Q
+from django.db.models import Q, Func, Value, DateTimeField, Max
 from rest_framework import serializers
 
 from utils.django.serializers.fields import ChoiceDisplayField
@@ -46,6 +46,36 @@ class AdjustmentSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class TimeBucket(Func):
+    function = 'time_bucket'
+
+
+def to_buckets(qs, bucket_size_sec, time_field, *fields):
+    bucket_size = f'{bucket_size_sec} seconds'
+    p = '_bucket_'
+
+    qs = qs\
+        .annotate(**{
+            p+time_field: TimeBucket(Value(bucket_size), time_field, output_field=DateTimeField())
+        })\
+        .values(p+time_field)\
+        .order_by(p+time_field)
+
+    for field in fields:
+        qs = qs.annotate(**{
+            p+field: Max(field),
+        })
+
+    for result in qs:
+        result[time_field] = result[p+time_field]
+        del result[p+time_field]
+        for field in fields:
+            result[field] = result[p+field]
+            del result[p+field]
+
+    return qs
+
+
 class WorkloadStatsSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Workload
@@ -57,6 +87,16 @@ class WorkloadStatsSerializer(serializers.ModelSerializer):
     def get_stats(self, workload):
         since = datetime.datetime.now() - datetime.timedelta(days=30)
         stats = defaultdict(dict)
+
+        request = self.context.get('request')
+        if request:
+            step = request.GET.get('step')
+            try:
+                step = int(step)
+            except TypeError:
+                step = None
+        else:
+            step = None
 
         containers = models.Container.objects\
             .filter(pod__workload=workload)\
@@ -78,10 +118,22 @@ class WorkloadStatsSerializer(serializers.ModelSerializer):
             })
 
         for container_name, container_ids in container_ids_by_name.items():
-            usage_measurements = models.ResourceUsage.objects\
-                .filter(container__in=container_ids, measured_at__gt=since)\
-                .order_by('measured_at')
-            stats[container_name]['usage'] = ResourceUsageSerializer(usage_measurements, many=True).data
+            if step:
+                usage_measurements = to_buckets(
+                    models.ResourceUsage.objects\
+                        .filter(container__in=container_ids, measured_at__gt=since),
+                    step,
+                    'measured_at',
+                    'memory_mi',
+                    'cpu_m_seconds',
+                )
+
+                stats[container_name]['usage'] = list(usage_measurements)
+            else:
+                usage_measurements = models.ResourceUsage.objects \
+                    .filter(container__in=container_ids, measured_at__gt=since) \
+                    .order_by('measured_at')
+                stats[container_name]['usage'] = ResourceUsageSerializer(usage_measurements, many=True).data
 
             oom_events = models.OOMEvent.objects\
                 .filter(container__in=container_ids, happened_at__gt=since) \
