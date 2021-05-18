@@ -5,6 +5,11 @@ from utils.django.settings import *
 
 CACHES['default'] = CACHES['locmem']
 
+if env('DEV_ENV'):
+    INSTALLED_APPS += ['corsheaders']
+    MIDDLEWARE = ['corsheaders.middleware.CorsMiddleware'] + MIDDLEWARE
+    CORS_ALLOW_ALL_ORIGINS = True
+
 env.scheme['PS_DATABASE_URL'] = (str, None)
 env.scheme['MAX_RETENTION_DAYS'] = (int, 30)
 
