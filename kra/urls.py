@@ -12,6 +12,4 @@ router.register('resource-usages', views.ResourceUsageViewSet, basename='resourc
 router.register('oom-events', views.OOMEventViewSet, basename='oom_event')
 router.register('adjustments', views.AdjustmentViewSet, basename='adjustment')
 
-router.register('workload-stats', views.WorkloadStatsView, basename='workload-stats')
-
 urlpatterns += router.urls

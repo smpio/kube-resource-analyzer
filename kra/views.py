@@ -32,8 +32,3 @@ class OOMEventViewSet(viewsets.ModelViewSet):
 class AdjustmentViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.AdjustmentSerializer
     queryset = models.Adjustment.objects.all()
-
-
-class WorkloadStatsView(viewsets.ReadOnlyModelViewSet):
-    serializer_class = serializers.WorkloadStatsSerializer
-    queryset = models.Workload.objects.all()
