@@ -98,7 +98,7 @@ def update_pod(pod):
     data = {
         'namespace': pod.metadata.namespace,
         'name': pod.metadata.name,
-        'spec_hash': '?',  # TODO
+        'spec_hash': get_pod_spec_hash(pod),
         'started_at': pod.status.start_time,
     }
 
@@ -218,6 +218,10 @@ def parse_container_runtime_id(container_id):
     if match is None:
         return None
     return match.group(1)
+
+
+def get_pod_spec_hash(pod):
+    return pod.metadata.labels.get('controller-revision-hash') or pod.metadata.labels.get('pod-template-hash') or ''
 
 
 if __name__ == '__main__':
