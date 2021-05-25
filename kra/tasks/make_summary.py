@@ -26,8 +26,8 @@ def make_summary():
 
             last_container = models.Container.objects\
                 .filter(pod__workload=wl, name=stat.container_name)\
-                .order_by('pod__started_at')\
-                .last()
+                .order_by('-pod__started_at')\
+                .first()
 
             if last_container is not None:
                 stat.memory_limit_mi = last_container.memory_limit_mi

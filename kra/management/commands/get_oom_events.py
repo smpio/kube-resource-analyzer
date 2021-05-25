@@ -11,7 +11,10 @@ class Command(BaseCommand):
     help = 'Get OOM events'
 
     def handle(self, *args, **options):
-        for ev in models.OOMEvent.objects.order_by('happened_at').iterator():
+        qs = models.OOMEvent.objects\
+            .order_by('happened_at')\
+            .select_related('container__pod__workload')
+        for ev in qs.iterator():
             wl = ev.container.pod.workload
             if ev.victim_pid:
                 msg = f'(Killed {ev.victim_comm} {ev.victim_pid})'
