@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 
 from django.db import transaction
 from django.db.models import Max, Avg
@@ -12,13 +13,20 @@ log = logging.getLogger(__name__)
 def make_summary():
     models.Summary.objects.all().delete()
 
-    for wl in models.Workload.objects.order_by('namespace', 'name'):
-        resource_usage_qs = models.ResourceUsage.objects\
-            .filter(container__pod__workload=wl)\
-            .values('container__name')\
-            .annotate(max_memory_mi=Max('memory_mi'), avg_cpu_m=Avg('cpu_m'))
+    resource_usage = defaultdict(list)
+    resource_usage_qs = models.ResourceUsage.objects\
+        .values('container__pod__workload_id', 'container__name')\
+        .annotate(max_memory_mi=Max('memory_mi'), avg_cpu_m=Avg('cpu_m'))
+    for u in resource_usage_qs:
+        resource_usage[u['container__pod__workload_id']].append(u)
 
-        for cu in resource_usage_qs:
+    for wl in models.Workload.objects.order_by('namespace', 'name'):
+        try:
+            workload_ru = resource_usage[wl.id]
+        except KeyError:
+            continue
+
+        for cu in workload_ru:
             stat = models.Summary(workload=wl, container_name=cu['container__name'])
             stat.max_memory_mi = cu['max_memory_mi']
             if cu['avg_cpu_m'] is not None:
