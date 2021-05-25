@@ -133,7 +133,8 @@ class Summary(models.Model):
         if force_update:
             yield from make_summary()
         else:
-            yield from Summary.objects.order_by('workload__namespace', 'workload__name')\
+            yield from Summary.objects\
+                .order_by('workload__namespace', 'workload__name')\
                 .select_related('workload')
 
 
