@@ -32,3 +32,13 @@ class OOMEventViewSet(viewsets.ModelViewSet):
 class AdjustmentViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.AdjustmentSerializer
     queryset = models.Adjustment.objects.all()
+
+
+class SummaryViewSet(viewsets.ModelViewSet):
+    serializer_class = serializers.SummarySerializer
+    queryset = models.Summary.objects.all()
+
+
+class SuggestionViewSet(viewsets.ModelViewSet):
+    serializer_class = serializers.SuggestionSerializer
+    queryset = models.Suggestion.objects.all().select_related('summary')

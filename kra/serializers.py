@@ -108,3 +108,16 @@ class AdjustmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Adjustment
         fields = '__all__'
+
+
+class SummarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Summary
+        fields = '__all__'
+
+
+class SuggestionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Suggestion
+        fields = '__all__'
+        depth = 1
