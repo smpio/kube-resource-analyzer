@@ -153,7 +153,7 @@ class Suggestion(models.Model):
         from kra.tasks import make_suggestions
         if force_update:
             make_suggestions(force_update=force_update)
-        return Suggestion.objects.exclude(priority=0).order_by('-priority')
+        return Suggestion.objects.order_by('-priority')
 
 
 class PSRecord(models.Model):
