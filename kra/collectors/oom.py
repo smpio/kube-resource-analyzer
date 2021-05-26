@@ -11,13 +11,13 @@ from utils.signal import install_shutdown_signal_handlers
 from utils.django.db import fix_long_connections
 
 from kra import models, kube_config
+from kra.utils import parse_cgroup
 
 log = logging.getLogger(__name__)
 
 MEBIBYTE = 1024 * 1024
 target_message_re = re.compile(r'Kill\s+process\s+(\d+)\s+\((.*)\)')
 victim_message_re = re.compile(r'Killed\s+process\s+(\d+)\s+\((.*)\)')
-cgroup_re = re.compile(r'/pod([\w\-]+)/(\w+)$')
 
 
 def main():
@@ -116,12 +116,6 @@ def get_ps_record(event, pid):
     node = event.involved_object.name
     return models.PSRecord.objects.filter(hostname=node, pid=pid, ts__lte=event.last_timestamp).order_by('-ts').first()
 
-
-def parse_cgroup(cgroup):
-    match = cgroup_re.search(cgroup)
-    if not match:
-        return None, None
-    return match.group(1), match.group(2)
 
 
 if __name__ == '__main__':
