@@ -1,6 +1,7 @@
 import datetime
 from collections import defaultdict
 
+from django.conf import settings
 from django.db.models import Q
 from rest_framework import serializers
 
@@ -32,7 +33,7 @@ class WorkloadSerializer(serializers.ModelSerializer):
         except TypeError:
             step = None
 
-        since = datetime.datetime.now() - datetime.timedelta(days=30)
+        since = datetime.datetime.now() - settings.MAX_RETENTION
         stats = defaultdict(dict)
 
         containers = models.Container.objects\
