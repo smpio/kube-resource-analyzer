@@ -45,12 +45,13 @@ def make_suggestion(stat, force_update=False):
             priorities.append(1000 + ((min_memory_limit / stat.memory_limit_mi) - 1) * 100)
             reasons.append(f'Recorded memory usage {stat.max_memory_mi} Mi')
 
-    sug.reason = '; '.join(reasons)
+    if not priorities:
+        if sug.id:
+            sug.delete()
+        return
 
-    if priorities:
-        sug.priority = max(priorities)
-    else:
-        sug.priority = 0
+    sug.reason = '; '.join(reasons)
+    sug.priority = sum(priorities)
 
     if new_memory_limits_mi:
         sug.new_memory_limit_mi = max(new_memory_limits_mi)
