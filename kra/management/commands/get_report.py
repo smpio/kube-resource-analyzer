@@ -1,5 +1,7 @@
 import logging
+from collections import defaultdict
 
+from django.db.models import F
 from django.core.management.base import BaseCommand
 
 from kra import models
@@ -14,6 +16,14 @@ class Command(BaseCommand):
         parser.add_argument('--force-update', action='store_true', help='Force analytics update')
 
     def handle(self, *args, **options):
+        oom_events = defaultdict(list)
+        oom_qs = models.OOMEvent.objects.all()\
+            .prefetch_related('container')\
+            .annotate(workload_id=F('container__pod__workload'))\
+            .order_by('happened_at')
+        for e in oom_qs:
+            oom_events[(e.workload_id, e.container.name)].append(e)
+
         for stat in models.Summary.get_all(options['force_update']):
             print(f'{stat.workload.kind.name} {stat.workload.namespace}/{stat.workload.name}'
                   f' (container {stat.container_name})')
@@ -30,9 +40,7 @@ class Command(BaseCommand):
                     msg += f' / {stat.cpu_request_m}m'
                 print(msg)
 
-            oom_qs = models.OOMEvent.objects.filter(container__pod__workload=stat.workload,
-                                                    container__name=stat.container_name).order_by('happened_at')
-            for oom in oom_qs:
+            for oom in oom_events[(stat.workload.id, stat.container_name)]:
                 msg = f'  OOM {oom.happened_at}'
                 if oom.target_pid:
                     msg += f' target:{oom.target_comm}({oom.target_pid})'
