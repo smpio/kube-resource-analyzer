@@ -4,7 +4,7 @@ from kra import models
 
 
 class Command(BaseCommand):
-    help = 'Analyze and optimize'
+    help = 'Analyze and get suggestions'
 
     def add_arguments(self, parser):
         parser.add_argument('--force-update', action='store_true', help='Force analytics update')
