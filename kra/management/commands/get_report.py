@@ -1,12 +1,9 @@
-import logging
 from collections import defaultdict
 
 from django.db.models import F
 from django.core.management.base import BaseCommand
 
 from kra import models
-
-log = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):

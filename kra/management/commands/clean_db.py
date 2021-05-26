@@ -1,13 +1,9 @@
-import logging
-
 from django.db import connection
 from django.conf import settings
 from django.utils import timezone
 from django.core.management.base import BaseCommand
 
 from kra import models
-
-log = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
@@ -18,23 +14,23 @@ class Command(BaseCommand):
 
         deleted, _ = models.Adjustment.objects.filter(done_at__lt=delete_before).delete()
         vacuum(models.Adjustment)
-        log.info('Deleted %d adjustments', deleted)
+        print(f'Deleted {deleted} adjustments')
 
         deleted, _ = models.OOMEvent.objects.filter(happened_at__lt=delete_before).delete()
         vacuum(models.OOMEvent)
-        log.info('Deleted %d OOM events', deleted)
+        print(f'Deleted {deleted} OOM events')
 
         deleted, _ = models.ResourceUsage.objects.filter(measured_at__lt=delete_before).delete()
         vacuum(models.ResourceUsage)
-        log.info('Deleted %d resource usage measurements', deleted)
+        print(f'Deleted {deleted} resource usage measurements')
 
         deleted, _ = models.Pod.objects.filter(gone_at__lt=delete_before).delete()
         vacuum(models.Pod)
-        log.info('Deleted %d pods', deleted)
+        print(f'Deleted {deleted} pods')
 
         deleted, _ = models.Workload.objects.filter(pod=None).delete()
         vacuum(models.Workload)
-        log.info('Deleted %d workloads', deleted)
+        print(f'Deleted {deleted} workloads')
 
         vacuum(models.Summary)
         vacuum(models.Suggestion)
