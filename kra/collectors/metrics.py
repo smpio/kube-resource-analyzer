@@ -110,6 +110,9 @@ class CollectorThread(SupervisedThread):
 
             usage = models.ResourceUsage(container=container)
             usage.measured_at = timezone.now()
+            # See
+            # https://stackoverflow.com/questions/65428558/what-is-the-difference-between-container-memory-working-set-bytes-and-contain
+            # https://stackoverflow.com/questions/66832316/what-is-the-relation-between-container-memory-working-set-bytes-metric-and-oom
             usage.memory_mi = container_metrics['memory']['workingSetBytes'] / MEBIBYTE + 1
             usage.cpu_m_seconds = container_metrics['cpu']['usageCoreNanoSeconds'] / 1000000
             usage.save()
