@@ -25,17 +25,15 @@ class Command(BaseCommand):
             print(f'{stat.workload.kind.name} {stat.workload.namespace}/{stat.workload.name}'
                   f' (container {stat.container_name})')
 
-            if stat.max_memory_mi is not None:
-                msg = f'  max memory: {stat.max_memory_mi} Mi'
-                if stat.memory_limit_mi:
-                    msg += f' / {stat.memory_limit_mi} Mi'
-                print(msg)
+            msg = f'  max memory: {stat.max_memory_mi} Mi'
+            if stat.memory_limit_mi:
+                msg += f' / {stat.memory_limit_mi} Mi'
+            print(msg)
 
-            if stat.avg_cpu_m is not None:
-                msg = f'  avg CPU: {stat.avg_cpu_m}m'
-                if stat.cpu_request_m:
-                    msg += f' / {stat.cpu_request_m}m'
-                print(msg)
+            msg = f'  avg CPU: {stat.avg_cpu_m}m'
+            if stat.cpu_request_m:
+                msg += f' / {stat.cpu_request_m}m'
+            print(msg)
 
             for oom in oom_events[(stat.workload.id, stat.container_name)]:
                 msg = f'  OOM {oom.happened_at}'

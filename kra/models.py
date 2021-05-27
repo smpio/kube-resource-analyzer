@@ -68,7 +68,6 @@ class ResourceUsage(models.Model):
     container = models.ForeignKey('Container', on_delete=models.CASCADE)
     measured_at = models.DateTimeField(default=timezone.now)
     memory_mi = models.PositiveIntegerField(blank=True, null=True)
-    cpu_m = models.PositiveIntegerField(blank=True, null=True)  # TODO: remove
     cpu_m_seconds = models.BigIntegerField(blank=True, null=True)
 
     class Meta:
@@ -111,10 +110,10 @@ class Summary(models.Model):
     container_name = models.CharField(max_length=255)
     done_at = models.DateTimeField(auto_now=True)
 
-    max_memory_mi = models.PositiveIntegerField(blank=True, null=True)
+    max_memory_mi = models.PositiveIntegerField()
     memory_limit_mi = models.PositiveIntegerField(blank=True, null=True)
 
-    avg_cpu_m = models.PositiveIntegerField(blank=True, null=True)
+    avg_cpu_m = models.PositiveIntegerField()
     cpu_request_m = models.PositiveIntegerField(blank=True, null=True)
 
     class Meta:
