@@ -11,27 +11,56 @@ from . import models
 from .qs import to_buckets
 
 
+class NestedSuggestionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Suggestion
+        fields = [
+            'id',
+            'done_at',
+            'new_memory_limit_mi',
+            'new_cpu_request_m',
+            'reason',
+            'priority',
+        ]
+
+
+class NestedSummarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Summary
+        fields = [
+            'container_name',
+            'done_at',
+            'max_memory_mi',
+            'memory_limit_mi',
+            'avg_cpu_m',
+            'cpu_request_m',
+            'suggestion',
+        ]
+
+    suggestion = NestedSuggestionSerializer(read_only=True)
+
+
 class WorkloadSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Workload
-        fields = '__all__'
+        fields = [
+            'id',
+            'kind',
+            'namespace',
+            'name',
+            'priority',
+            'auto_downgrade',
+            'min_auto_downgrade_interval_sec',
+            'summary_set',
+            'stats',
+        ]
     serializer_choice_field = ChoiceDisplayField
 
+    summary_set = NestedSummarySerializer(many=True, read_only=True)
     stats = serializers.SerializerMethodField('get_stats')
 
     def get_stats(self, workload):
-        request = self.context.get('request')
-        if not request:
-            return
-
-        if request.GET.get('stats') is None:
-            return
-
-        step = request.GET.get('step')
-        try:
-            step = int(step)
-        except TypeError:
-            step = None
+        step = self.context.get('stats_step')
 
         since = datetime.datetime.now() - settings.MAX_RETENTION
         stats = defaultdict(dict)

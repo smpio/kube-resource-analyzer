@@ -6,7 +6,32 @@ from kra import serializers
 
 class WorkloadViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.WorkloadSerializer
-    queryset = models.Workload.objects.all()
+
+    def get_queryset(self):
+        qs = models.Workload.objects.all()
+        if self.request.GET.get('summary') is not None:
+            qs = qs.prefetch_related('summary_set__suggestion')
+        return qs
+
+    def get_serializer(self, *args, **kwargs):
+        serializer = super().get_serializer(*args, **kwargs)
+
+        s = getattr(serializer, 'child', serializer)
+
+        if self.request.GET.get('summary') is None:
+            del s.fields['summary_set']
+
+        if self.request.GET.get('stats') is None:
+            del s.fields['stats']
+
+        step = self.request.GET.get('step')
+        try:
+            step = int(step)
+        except TypeError:
+            step = None
+        s.context['stats_step'] = step
+
+        return serializer
 
 
 class PodViewSet(viewsets.ModelViewSet):
