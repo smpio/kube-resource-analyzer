@@ -21,6 +21,8 @@ class Workload(models.Model):
     kind = EnumField(enum_class=WorkloadKind)
     namespace = models.CharField(max_length=255)
     name = models.CharField(max_length=255)
+
+    # UNUSED
     priority = models.FloatField(validators=[MinValueValidator(0)], default=1)
     auto_downgrade = models.BooleanField(default=False)
     min_auto_downgrade_interval_sec = models.PositiveIntegerField(blank=True, null=True)
