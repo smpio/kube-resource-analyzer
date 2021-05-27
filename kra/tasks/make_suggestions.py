@@ -41,7 +41,7 @@ def make_suggestions(force_update=False, force_summary_update=False):
             container_oom_events = oom_events[(stat.workload_id, stat.container_name)]
             if container_oom_events:
                 oom = container_oom_events[-1]
-                if oom.container.memory_limit_mi:
+                if oom.container.memory_limit_mi and stat.memory_limit_mi:
                     min_memory_limit = int(oom.container.memory_limit_mi * memory_reserve_multiplier) + 1
                     if stat.memory_limit_mi < min_memory_limit:
                         new_memory_limits_mi.append(min_memory_limit)
