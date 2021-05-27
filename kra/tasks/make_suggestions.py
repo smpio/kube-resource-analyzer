@@ -61,7 +61,7 @@ def make_suggestions(force_update=False, force_summary_update=False):
                 continue
 
             sug.reason = '; '.join(reasons)
-            sug.priority = sum(priorities)
+            sug.priority = max(priorities)
 
             if new_memory_limits_mi:
                 sug.new_memory_limit_mi = max(new_memory_limits_mi)
