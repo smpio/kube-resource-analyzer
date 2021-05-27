@@ -140,6 +140,16 @@ class Summary(models.Model):
                 .select_related('workload')
 
 
+class InstanceSummary(models.Model):
+    """
+    Summary per single pod container
+    """
+    aggregated = models.ForeignKey('Summary', on_delete=models.CASCADE)
+
+    max_memory_mi = models.PositiveIntegerField()
+    avg_cpu_m = models.PositiveIntegerField()
+
+
 class Suggestion(models.Model):
     summary = models.OneToOneField('Summary', on_delete=models.CASCADE)
     done_at = models.DateTimeField(auto_now=True)
