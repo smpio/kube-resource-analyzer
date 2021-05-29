@@ -43,6 +43,11 @@ class Pod(models.Model):
     started_at = models.DateTimeField()
     gone_at = models.DateTimeField(blank=True, null=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['started_at']),
+        ]
+
     def __str__(self):
         return f'{self.namespace}/{self.name}'
 
@@ -73,6 +78,7 @@ class ResourceUsage(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=['measured_at']),
+            models.Index(fields=['container_id', 'measured_at']),
         ]
 
 

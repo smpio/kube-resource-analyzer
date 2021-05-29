@@ -2,11 +2,11 @@ import logging
 from collections import defaultdict
 
 from django.db import transaction
-from django.db.models import Max
 
 from utils.django.db import bulk_save
 
 from kra import models
+from kra.analytics.container import get_containers_summary
 
 log = logging.getLogger(__name__)
 
@@ -15,61 +15,55 @@ log = logging.getLogger(__name__)
 def make_summary():
     models.Summary.objects.all().delete()
 
-    resource_usage = defaultdict(lambda: defaultdict(list))
-    resource_usage_qs = models.ResourceUsage.objects\
-        .values('container__pod_id', 'container__name')\
-        .annotate(
-            max_memory_mi=Max('memory_mi'),
-            last_cpu_m_seconds=Max('cpu_m_seconds'),
-            last_measured_at=Max('measured_at'),
-        )
-    pod_ids = (ru['container__pod_id'] for ru in resource_usage_qs)
-    pods = models.Pod.objects.filter(id__in=pod_ids).in_bulk(field_name='id')
+    log.info('Query containers summary...')
+    containers_by_pod_id = defaultdict(list)
+    for c in get_containers_summary():
+        containers_by_pod_id[c.pod_id].append(c)
+    log.info('DONE')
 
-    for ru in resource_usage_qs:
-        pod = pods[ru['container__pod_id']]
-        ru['container__pod'] = pod
-        resource_usage[pod.workload_id][ru['container__name']].append(ru)
+    log.info('Collecting results')
+
+    pods_by_workload_id = defaultdict(list)
+    for pod in models.Pod.objects.order_by('started_at'):
+        pods_by_workload_id[pod.workload_id].append(pod)
 
     with bulk_save() as save:
-        for wl in models.Workload.objects.order_by('namespace', 'name'):
-            try:
-                workload_ru = resource_usage[wl.id]
-            except KeyError:
-                continue
-
-            for container_name, container_ru in workload_ru.items():
-                if not container_ru:
-                    continue
-
+        for wl in models.Workload.objects.all().order_by('namespace', 'name'):
+            containers_by_name = defaultdict(list)
+            for pod in pods_by_workload_id[wl.id]:
+                for c in containers_by_pod_id[pod.id]:
+                    containers_by_name[c.name].append(c)
+            for container_name, containers in containers_by_name.items():
                 summary = models.Summary(workload=wl, container_name=container_name)
                 save(summary)
-                for instance_summary in _fill_summary(summary, container_ru):
+                for instance_summary in _fill_summary(summary, containers):
                     save(instance_summary)
                 yield summary
 
 
-def _fill_summary(summary, rus):
-    rus.sort(key=lambda ru: ru['container__pod'].started_at)
-    last_container = models.Container.objects.get(pod=rus[-1]['container__pod'], name=summary.container_name)
+def _fill_summary(summary, containers):
+    last_container = containers[-1]
     summary.memory_limit_mi = last_container.memory_limit_mi
     summary.cpu_request_m = last_container.cpu_request_m
 
     summary.max_memory_mi = 0
-    total_running_seconds = 0
+    total_seconds = 0
     total_cpu_m_seconds = 0
 
-    for ru in rus:
+    for c in containers:
         instance_summary = models.InstanceSummary(aggregated=summary)
 
-        instance_summary.max_memory_mi = ru['max_memory_mi']
-        summary.max_memory_mi = max(summary.max_memory_mi, instance_summary.max_memory_mi)
+        instance_summary.max_memory_mi = c.max_memory_mi
+        instance_summary.avg_cpu_m = c.avg_cpu_m or 0  # TODO: remove "or 0"
 
-        running_seconds = (ru['last_measured_at'] - ru['container__pod'].started_at).total_seconds()
-        instance_summary.avg_cpu_m = round(ru['last_cpu_m_seconds'] / running_seconds)
-        total_running_seconds += running_seconds
-        total_cpu_m_seconds += ru['last_cpu_m_seconds']
+        summary.max_memory_mi = max(summary.max_memory_mi, c.max_memory_mi)
+
+        total_seconds += c.total_seconds
+        total_cpu_m_seconds += c.total_cpu_m_seconds
 
         yield instance_summary
 
-    summary.avg_cpu_m = round(total_cpu_m_seconds / total_running_seconds)
+    if total_seconds == 0:
+        summary.avg_cpu_m = 0
+    else:
+        summary.avg_cpu_m = round(total_cpu_m_seconds / total_seconds)
