@@ -24,7 +24,7 @@ def get_containers_summary():
                     extract(epoch FROM (till - since)) AS total_seconds
                 FROM (
                     SELECT 
-                        min(measured_at) AS since, 
+                        c.started_at AS since,
                         max(measured_at) AS till,
                         max(cpu_m_seconds) AS total_cpu_m_seconds,
                         max(memory_mi) AS max_memory_mi,
@@ -34,7 +34,13 @@ def get_containers_summary():
                             measured_at,
                             cpu_m_seconds,
                             memory_mi,
-                            (memory_mi * extract(epoch FROM (measured_at - lag(measured_at) OVER w))) AS memory_mi_seconds
+                            (
+                                CASE
+                                    WHEN lag(measured_at) OVER w IS NULL
+                                        THEN memory_mi * extract(epoch FROM (measured_at - lag(measured_at) OVER w))
+                                        ELSE memory_mi * extract(epoch FROM (measured_at - c.started_at))
+                                END
+                            ) AS memory_mi_seconds
                         FROM %(ru_tblname)s
                         WHERE container_id = c.id
                         WINDOW w AS (ORDER BY measured_at)

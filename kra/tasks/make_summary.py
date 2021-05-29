@@ -54,7 +54,7 @@ def _fill_summary(summary, containers):
         instance_summary = models.InstanceSummary(aggregated=summary)
 
         instance_summary.max_memory_mi = c.max_memory_mi
-        instance_summary.avg_cpu_m = c.avg_cpu_m or 0  # TODO: remove "or 0"
+        instance_summary.avg_cpu_m = c.avg_cpu_m
 
         summary.max_memory_mi = max(summary.max_memory_mi, c.max_memory_mi)
 
@@ -63,7 +63,4 @@ def _fill_summary(summary, containers):
 
         yield instance_summary
 
-    if total_seconds == 0:
-        summary.avg_cpu_m = 0
-    else:
-        summary.avg_cpu_m = round(total_cpu_m_seconds / total_seconds)
+    summary.avg_cpu_m = round(total_cpu_m_seconds / total_seconds)
