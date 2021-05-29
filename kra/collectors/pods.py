@@ -133,6 +133,11 @@ def update_containers(pod, mypod):
         mycontainers[container.name] = data
 
     for container_status in pod.status.container_statuses:
+        if container_status.state.running:
+            mycontainers[container_status.name]['started_at'] = container_status.state.running.started_at
+        elif container_status.state.terminated:
+            mycontainers[container_status.name]['started_at'] = container_status.state.terminated.started_at
+
         if not container_status.container_id:
             # container is terminating
             continue
