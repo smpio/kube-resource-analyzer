@@ -72,8 +72,8 @@ class Container(models.Model):
 class ResourceUsage(models.Model):
     container = models.ForeignKey('Container', on_delete=models.CASCADE)
     measured_at = models.DateTimeField(default=timezone.now)
-    memory_mi = models.PositiveIntegerField(blank=True, null=True)
-    cpu_m_seconds = models.BigIntegerField(blank=True, null=True)
+    memory_mi = models.PositiveIntegerField()
+    cpu_m_seconds = models.BigIntegerField()
 
     class Meta:
         indexes = [
