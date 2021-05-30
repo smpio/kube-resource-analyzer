@@ -12,7 +12,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         if options['update_all']:
-            tasks.make_summary()
+            tasks.make_summaries()
         if options['update_all'] or options['update']:
             tasks.make_suggestions()
 

@@ -14,7 +14,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         if options['update']:
-            tasks.make_summary()
+            tasks.make_summaries()
 
         oom_events = defaultdict(list)
         oom_qs = models.OOMEvent.objects.all()\

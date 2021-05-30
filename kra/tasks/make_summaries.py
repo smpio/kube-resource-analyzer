@@ -9,7 +9,7 @@ from kra.analytics.container import get_containers_summary
 log = logging.getLogger(__name__)
 
 
-def make_summary():
+def make_summaries():
     models.Summary.objects.all().delete()
 
     log.info('Query containers summary...')
