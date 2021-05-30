@@ -1,5 +1,6 @@
 import time
 import logging
+import datetime
 from datetime import timedelta
 
 import kubernetes
@@ -109,7 +110,8 @@ class CollectorThread(SupervisedThread):
                 continue
 
             usage = models.ResourceUsage(container=container)
-            usage.measured_at = timezone.now()
+            iso_timestamp = container_metrics['memory']['time'].replace('Z', '+00:00')
+            usage.measured_at = datetime.datetime.fromisoformat(iso_timestamp)
             # See
             # https://stackoverflow.com/questions/65428558/what-is-the-difference-between-container-memory-working-set-bytes-and-contain
             # https://stackoverflow.com/questions/66832316/what-is-the-relation-between-container-memory-working-set-bytes-metric-and-oom
