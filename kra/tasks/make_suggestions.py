@@ -13,6 +13,7 @@ log = logging.getLogger(__name__)
 
 def make_suggestions():
     memory_reserve_multiplier = 1 + settings.BASE_MEMORY_RESERVE_FRACTION
+    cpu_overuse_multiplier = 1 + settings.BASE_CPU_OVERUSE_FRACTION
 
     suggestions = models.Suggestion.objects.in_bulk(field_name='summary_id')
 
@@ -47,12 +48,25 @@ def make_suggestions():
                         priorities.append(200 + ((min_memory_limit / stat.memory_limit_mi) - 1) * 100)
                         memory_reasons.append(f'OOM @ {oom.container.memory_limit_mi} Mi limit')
 
+            min_memory_limit = int(stat.max_memory_mi * memory_reserve_multiplier) + 1
             if stat.memory_limit_mi:
-                min_memory_limit = int(stat.max_memory_mi * memory_reserve_multiplier) + 1
                 if stat.memory_limit_mi < min_memory_limit:
                     new_memory_limits_mi.append(min_memory_limit)
                     priorities.append(100 + ((min_memory_limit / stat.memory_limit_mi) - 1) * 100)
-                    memory_reasons.append(f'recorded memory usage {stat.max_memory_mi} > limit {stat.memory_limit_mi} Mi')
+                    memory_reasons.append(f'memory usage {stat.max_memory_mi} Mi near limit {stat.memory_limit_mi} Mi')
+            else:
+                new_memory_limits_mi.append(min_memory_limit)
+                priorities.append(1)
+
+            if stat.cpu_request_m:
+                max_cpu_usage = stat.cpu_request_m * cpu_overuse_multiplier
+                if stat.avg_cpu_m > max_cpu_usage:
+                    new_cpu_requests_m.append(stat.avg_cpu_m)
+                    priorities.append(100 + ((stat.avg_cpu_m / stat.cpu_request_m) - 1) * 100)
+                    cpu_reasons.append(f'avg cpu usage {stat.avg_cpu_m}m exceeds request {stat.cpu_request_m}m too much')
+            else:
+                new_cpu_requests_m.append(stat.avg_cpu_m)
+                priorities.append(1)
 
             if not priorities:
                 if sug.id:
@@ -61,7 +75,7 @@ def make_suggestions():
 
             sug.memory_reason = '; '.join(memory_reasons)
             sug.cpu_reason = '; '.join(cpu_reasons)
-            sug.priority = max(priorities)
+            sug.priority = sum(priorities)
 
             if new_memory_limits_mi:
                 sug.new_memory_limit_mi = max(new_memory_limits_mi)
