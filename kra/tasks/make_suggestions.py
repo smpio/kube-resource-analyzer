@@ -11,7 +11,7 @@ from kra import models
 log = logging.getLogger(__name__)
 
 
-def make_suggestions(force_update=False, force_summary_update=False):
+def make_suggestions():
     memory_reserve_multiplier = 1 + settings.BASE_MEMORY_RESERVE_FRACTION
 
     suggestions = models.Suggestion.objects.in_bulk(field_name='summary_id')
@@ -19,17 +19,15 @@ def make_suggestions(force_update=False, force_summary_update=False):
     oom_events = defaultdict(list)
     oom_qs = models.OOMEvent.objects.all() \
         .prefetch_related('container') \
-        .annotate(workload_id=F('container__pod__workload')) \
+        .annotate(workload_id=F('container__pod__workload_id')) \
         .order_by('happened_at')
     for e in oom_qs:
         oom_events[(e.workload_id, e.container.name)].append(e)
 
     with bulk_save() as save:
-        for stat in models.Summary.get_all(force_summary_update):
+        for stat in models.Summary.objects.all():
             try:
                 sug = suggestions[stat.id]
-                if not force_update:
-                    continue
             except KeyError:
                 sug = models.Suggestion(summary=stat)
 

@@ -31,5 +31,4 @@ DATABASE_ROUTERS = ['kra.db_routers.PSRouter']
 REST_FRAMEWORK['DEFAULT_PAGINATION_CLASS'] = None
 
 MAX_RETENTION = datetime.timedelta(days=env('MAX_RETENTION_DAYS'))
-MAX_SUMMARY_AGE = datetime.timedelta(hours=1)
 BASE_MEMORY_RESERVE_FRACTION = 0.1

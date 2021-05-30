@@ -1,8 +1,6 @@
 import logging
 from collections import defaultdict
 
-from django.db import transaction
-
 from utils.django.db import bulk_save
 
 from kra import models
@@ -11,7 +9,6 @@ from kra.analytics.container import get_containers_summary
 log = logging.getLogger(__name__)
 
 
-@transaction.atomic
 def make_summary():
     models.Summary.objects.all().delete()
 
@@ -38,7 +35,6 @@ def make_summary():
                 save(summary)
                 for instance_summary in _fill_summary(summary, containers):
                     save(instance_summary)
-                yield summary
 
 
 def _fill_summary(summary, containers):

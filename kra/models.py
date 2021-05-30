@@ -1,7 +1,6 @@
 import enum
 
 from django.db import models
-from django.conf import settings
 from django.utils import timezone
 from django.core.validators import MinValueValidator
 
@@ -126,25 +125,6 @@ class Summary(models.Model):
     class Meta:
         unique_together = ('workload', 'container_name')
 
-    @staticmethod
-    def get_all(force_update=False):
-        from kra.tasks import make_summary
-
-        if not force_update:
-            max_age = settings.MAX_SUMMARY_AGE
-            last_summary = Summary.objects.order_by('done_at').last()
-            if last_summary is None:
-                force_update = True
-            else:
-                force_update = timezone.now() - last_summary.done_at > max_age
-
-        if force_update:
-            yield from make_summary()
-        else:
-            yield from Summary.objects\
-                .order_by('workload__namespace', 'workload__name')\
-                .select_related('workload')
-
 
 class InstanceSummary(models.Model):
     """
@@ -165,13 +145,6 @@ class Suggestion(models.Model):
 
     reason = models.TextField(blank=True)
     priority = models.IntegerField(default=0)
-
-    @staticmethod
-    def get_all(force_update=False):
-        from kra.tasks import make_suggestions
-        if force_update:
-            make_suggestions(force_update=force_update)
-        return Suggestion.objects.order_by('-priority')
 
 
 class PSRecord(models.Model):

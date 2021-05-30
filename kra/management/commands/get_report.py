@@ -3,16 +3,19 @@ from collections import defaultdict
 from django.db.models import F
 from django.core.management.base import BaseCommand
 
-from kra import models
+from kra import models, tasks
 
 
 class Command(BaseCommand):
     help = 'Analyze and get report'
 
     def add_arguments(self, parser):
-        parser.add_argument('--force-update', action='store_true', help='Force analytics update')
+        parser.add_argument('--update', action='store_true', help='Update summaries')
 
     def handle(self, *args, **options):
+        if options['update']:
+            tasks.make_summary()
+
         oom_events = defaultdict(list)
         oom_qs = models.OOMEvent.objects.all()\
             .prefetch_related('container')\
@@ -21,7 +24,10 @@ class Command(BaseCommand):
         for e in oom_qs:
             oom_events[(e.workload_id, e.container.name)].append(e)
 
-        for stat in models.Summary.get_all(options['force_update']):
+        qs = models.Summary.objects\
+                .order_by('workload__namespace', 'workload__name')\
+                .select_related('workload')
+        for stat in qs:
             print(f'{stat.workload.kind.name} {stat.workload.namespace}/{stat.workload.name}'
                   f' (container {stat.container_name})')
 
