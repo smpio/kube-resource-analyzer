@@ -1,11 +1,12 @@
 import time
 import logging
-import datetime
 from datetime import timedelta
+from collections import defaultdict
 
 import kubernetes
 import kubernetes.client.rest
 from django.utils import timezone
+from prometheus_client.parser import text_string_to_metric_families
 
 from utils.threading import SupervisedThread, SupervisedThreadGroup
 from utils.kubernetes.watch import KubeWatcher
@@ -13,6 +14,7 @@ from utils.signal import install_shutdown_signal_handlers
 from utils.django.db import fix_long_connections
 
 from kra import models, kube_config
+from kra.utils import parse_cgroup
 
 log = logging.getLogger(__name__)
 
@@ -72,17 +74,22 @@ class CollectorThread(SupervisedThread):
 
     def collect_node(self, node):
         log.info('Collecting node %s', node.metadata.name)
-        metrics = self.scrap_node(node)
-        for pod_metrics in metrics['pods']:
+
+        metrics = {family.name: family for family in text_string_to_metric_families(self.scrap_node(node))}
+        squashed_metrics = defaultdict(lambda: defaultdict(dict))
+        self.squash(metrics, 'container_memory_working_set_bytes', squashed_metrics)
+        self.squash(metrics, 'container_cpu_usage_seconds', squashed_metrics)
+
+        for pod_uid, pod_metrics in squashed_metrics.items():
             try:
-                self.collect_pod(pod_metrics)
+                self.collect_pod(pod_uid, pod_metrics)
             except Exception:
                 log.exception('Failed to collect pod')
 
     def scrap_node(self, node):
         client = kubernetes.client.ApiClient()
         response = client.call_api(
-            '/api/v1/nodes/{node}/proxy/stats/summary', 'GET',
+            '/api/v1/nodes/{node}/proxy/metrics/cadvisor', 'GET',
             path_params={
                 'node': node.metadata.name,
             },
@@ -91,30 +98,35 @@ class CollectorThread(SupervisedThread):
         )
         return response[0]
 
-    def collect_pod(self, pod_metrics):
-        pod_uid = pod_metrics['podRef']['uid']
+    def squash(self, metrics, metric_name, data):
+        for sample in metrics[metric_name].samples:
+            container_name = sample.labels['container']
+            if not container_name or container_name == 'POD':
+                continue
+            cgroup = sample.labels['id']
+            pod_uid, container_runtime_id = parse_cgroup(cgroup)
+            if not pod_uid:
+                continue
+            if '-' not in pod_uid:
+                # skip pods started directly by kubelet
+                continue
+            data[pod_uid][container_name][metric_name] = sample.value
+            data[pod_uid][container_name]['runtime_id'] = container_runtime_id
+            # use our own timestamp, because their timestamp differs for each metric
+            # data[pod_uid][container_name]['timestamp'] = sample.timestamp
 
-        if not pod_metrics.get('containers'):
-            log.info('No container metrics for pod %(namespace)s/%(name)s', pod_metrics['podRef'])
-            return
-
-        if '-' not in pod_uid:
-            # skip pods started directly by kubelet
-            return
-
+    def collect_pod(self, pod_uid, pod_metrics):
         containers = {c.name: c for c in models.Container.objects.filter(pod__uid=pod_uid)}
-        for container_metrics in pod_metrics['containers']:
-            container = containers.get(container_metrics['name'])
+        for container_name, container_metrics in pod_metrics.items():
+            container = containers.get(container_name)
             if not container:
                 log.debug('Container %s not found for pod %s', container_metrics['name'], pod_uid)
                 continue
 
             usage = models.ResourceUsage(container=container)
-            iso_timestamp = container_metrics['memory']['time'].replace('Z', '+00:00')
-            usage.measured_at = datetime.datetime.fromisoformat(iso_timestamp)
             # See
             # https://stackoverflow.com/questions/65428558/what-is-the-difference-between-container-memory-working-set-bytes-and-contain
             # https://stackoverflow.com/questions/66832316/what-is-the-relation-between-container-memory-working-set-bytes-metric-and-oom
-            usage.memory_mi = container_metrics['memory']['workingSetBytes'] / MEBIBYTE + 1
-            usage.cpu_m_seconds = container_metrics['cpu']['usageCoreNanoSeconds'] / 1000000
+            usage.memory_mi = container_metrics['container_memory_working_set_bytes'] / MEBIBYTE + 1
+            usage.cpu_m_seconds = container_metrics['container_cpu_usage_seconds'] * 1000
             usage.save()
