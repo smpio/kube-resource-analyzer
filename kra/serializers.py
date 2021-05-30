@@ -31,8 +31,12 @@ class NestedSummarySerializer(serializers.ModelSerializer):
             'container_name',
             'done_at',
             'max_memory_mi',
+            'avg_memory_mi',
+            'stddev_memory_mi',
             'memory_limit_mi',
+            'max_cpu_m',
             'avg_cpu_m',
+            'stddev_cpu_m',
             'cpu_request_m',
             'suggestion',
         ]
