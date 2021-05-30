@@ -14,6 +14,7 @@ def get_containers_summary():
                 total_seconds,
                 total_cpu_m_seconds,
                 max_memory_mi,
+                max_cpu_m,
                 total_memory_mi_seconds,
                 (total_memory_mi_seconds / total_seconds) AS avg_memory_mi,
                 (total_cpu_m_seconds / total_seconds) AS avg_cpu_m
@@ -28,12 +29,12 @@ def get_containers_summary():
                         max(cpu_m) AS max_cpu_m,
                         max(cpu_m_seconds) AS total_cpu_m_seconds,
                         max(memory_mi) AS max_memory_mi,
-                        sum(memory_mi_seconds) AS total_memory_mi_seconds
+                        sum(delta_memory_mi_seconds) AS total_memory_mi_seconds
                     FROM (
                         SELECT
                             *,
-                            memory_mi * interval_seconds AS memory_mi_seconds,
-                            cpu_m_seconds / interval_seconds AS cpu_m
+                            memory_mi * delta_seconds AS delta_memory_mi_seconds,
+                            delta_cpu_m_seconds / delta_seconds AS cpu_m
                         FROM (
                             SELECT
                                 measured_at,
@@ -45,7 +46,14 @@ def get_containers_summary():
                                             THEN extract(epoch FROM (measured_at - lag(measured_at) OVER w))
                                             ELSE extract(epoch FROM (measured_at - c.started_at))
                                     END
-                                ) AS interval_seconds
+                                ) AS delta_seconds,
+                                (
+                                    CASE
+                                        WHEN lag(cpu_m_seconds) OVER w IS NOT NULL
+                                            THEN cpu_m_seconds - lag(cpu_m_seconds) OVER w
+                                            ELSE cpu_m_seconds
+                                    END
+                                ) AS delta_cpu_m_seconds
                             FROM %(ru_tblname)s
                             WHERE container_id = c.id
                             WINDOW w AS (ORDER BY measured_at)
@@ -56,16 +64,16 @@ def get_containers_summary():
         ) AS pass1
         LEFT JOIN LATERAL (
             SELECT
-                sqrt(total_stddev_memory_mi2_seconds / total_seconds) AS memory_mi_stddev,
-                sqrt(total_stddev_cpu_m2_seconds / total_seconds) AS cpu_m_stddev
+                sqrt(total_stddev_memory_mi2_seconds / total_seconds) AS stddev_memory_mi,
+                sqrt(total_stddev_cpu_m2_seconds / total_seconds) AS stddev_cpu_m
             FROM (
                 SELECT
                     sum(stddev_memory_mi2_seconds) AS total_stddev_memory_mi2_seconds,
                     sum(stddev_cpu_m2_seconds) AS total_stddev_cpu_m2_seconds
                 FROM (
                     SELECT
-                        ((memory_mi - avg_memory_mi)^2 * interval_seconds) AS stddev_memory_mi2_seconds,
-                        ((cpu_m_seconds / interval_seconds - avg_cpu_m)^2 * interval_seconds) AS stddev_cpu_m2_seconds
+                        ((memory_mi - avg_memory_mi)^2 * delta_seconds) AS stddev_memory_mi2_seconds,
+                        ((delta_cpu_m_seconds / delta_seconds - avg_cpu_m)^2 * delta_seconds) AS stddev_cpu_m2_seconds
                     FROM (
                         SELECT
                             cpu_m_seconds,
@@ -76,7 +84,14 @@ def get_containers_summary():
                                         THEN extract(epoch FROM (measured_at - lag(measured_at) OVER w))
                                         ELSE extract(epoch FROM (measured_at - c.started_at))
                                 END
-                            ) AS interval_seconds
+                            ) AS delta_seconds,
+                            (
+                                CASE
+                                    WHEN lag(cpu_m_seconds) OVER w IS NOT NULL
+                                        THEN cpu_m_seconds - lag(cpu_m_seconds) OVER w
+                                        ELSE cpu_m_seconds
+                                END
+                            ) AS delta_cpu_m_seconds
                         FROM %(ru_tblname)s
                         WHERE container_id = c.id
                         WINDOW w AS (ORDER BY measured_at)

@@ -119,9 +119,13 @@ class Summary(models.Model):
     done_at = models.DateTimeField(auto_now=True)
 
     max_memory_mi = models.PositiveIntegerField()
+    avg_memory_mi = models.PositiveIntegerField()
+    stddev_memory_mi = models.PositiveIntegerField()
     memory_limit_mi = models.PositiveIntegerField(blank=True, null=True)
 
+    max_cpu_m = models.PositiveIntegerField()
     avg_cpu_m = models.PositiveIntegerField()
+    stddev_cpu_m = models.PositiveIntegerField()
     cpu_request_m = models.PositiveIntegerField(blank=True, null=True)
 
     class Meta:
@@ -135,7 +139,12 @@ class InstanceSummary(models.Model):
     aggregated = models.ForeignKey('Summary', on_delete=models.CASCADE)
 
     max_memory_mi = models.PositiveIntegerField()
+    avg_memory_mi = models.PositiveIntegerField()
+    stddev_memory_mi = models.PositiveIntegerField()
+
+    max_cpu_m = models.PositiveIntegerField()
     avg_cpu_m = models.PositiveIntegerField()
+    stddev_cpu_m = models.PositiveIntegerField()
 
 
 class Suggestion(models.Model):

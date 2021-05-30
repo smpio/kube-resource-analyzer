@@ -39,24 +39,42 @@ def make_summaries():
 
 def _fill_summary(summary, containers):
     last_container = containers[-1]
+
     summary.memory_limit_mi = last_container.memory_limit_mi
     summary.cpu_request_m = last_container.cpu_request_m
 
     summary.max_memory_mi = 0
+    summary.max_cpu_m = 0
+
     total_seconds = 0
     total_cpu_m_seconds = 0
+    total_memory_mi_seconds = 0
+    total_stddev_cpu_m_seconds = 0
+    total_stddev_memory_mi_seconds = 0
 
     for c in containers:
         instance_summary = models.InstanceSummary(aggregated=summary)
 
         instance_summary.max_memory_mi = c.max_memory_mi
+        instance_summary.avg_memory_mi = c.avg_memory_mi
+        instance_summary.stddev_memory_mi = c.stddev_memory_mi
+        instance_summary.max_cpu_m = c.max_cpu_m
         instance_summary.avg_cpu_m = c.avg_cpu_m
+        instance_summary.stddev_cpu_m = c.stddev_cpu_m
 
         summary.max_memory_mi = max(summary.max_memory_mi, c.max_memory_mi)
+        summary.max_cpu_m = max(summary.max_cpu_m, c.max_cpu_m)
 
         total_seconds += c.total_seconds
         total_cpu_m_seconds += c.total_cpu_m_seconds
+        total_memory_mi_seconds += c.total_memory_mi_seconds
+
+        total_stddev_cpu_m_seconds += c.stddev_cpu_m * c.total_seconds
+        total_stddev_memory_mi_seconds += c.stddev_memory_mi * c.total_seconds
 
         yield instance_summary
 
     summary.avg_cpu_m = round(total_cpu_m_seconds / total_seconds)
+    summary.avg_memory_mi = round(total_memory_mi_seconds / total_seconds)
+    summary.stddev_cpu_m = round(total_stddev_cpu_m_seconds / total_seconds)
+    summary.stddev_memory_mi = round(total_stddev_memory_mi_seconds / total_seconds)
