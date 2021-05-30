@@ -20,18 +20,10 @@ def get_containers_summary():
             FROM (
                 SELECT
                     *,
-                    (
-                        CASE
-                            WHEN till IS NULL
-                                THEN NULL
-                            WHEN till <> since
-                                THEN extract(epoch FROM (till - since))
-                                ELSE 30
-                            END
-                    ) AS total_seconds
+                    extract(epoch FROM (till - since)) AS total_seconds
                 FROM (
                     SELECT
-                        min(measured_at) AS since,
+                        c.started_at AS since,
                         max(measured_at) AS till,
                         max(cpu_m) AS max_cpu_m,
                         max(cpu_m_seconds) AS total_cpu_m_seconds,
@@ -51,7 +43,7 @@ def get_containers_summary():
                                     CASE
                                         WHEN lag(measured_at) OVER w IS NOT NULL
                                             THEN extract(epoch FROM (measured_at - lag(measured_at) OVER w))
-                                            ELSE 30
+                                            ELSE extract(epoch FROM (measured_at - c.started_at))
                                     END
                                 ) AS interval_seconds
                             FROM %(ru_tblname)s
@@ -82,7 +74,7 @@ def get_containers_summary():
                                 CASE
                                     WHEN lag(measured_at) OVER w IS NOT NULL
                                         THEN extract(epoch FROM (measured_at - lag(measured_at) OVER w))
-                                        ELSE 30
+                                        ELSE extract(epoch FROM (measured_at - c.started_at))
                                 END
                             ) AS interval_seconds
                         FROM %(ru_tblname)s
