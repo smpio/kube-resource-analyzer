@@ -29,7 +29,8 @@ class Command(BaseCommand):
                     print(f' (current: {stat.memory_limit_mi} Mi)')
                 else:
                     print(' (current: not set)')
-                print('    ' + sug.memory_reason)
+                if sug.memory_reason:
+                    print('    ' + sug.memory_reason)
 
             if sug.new_cpu_request_m:
                 print(f'  set CPU request to {sug.new_cpu_request_m}m', end='')
@@ -37,6 +38,7 @@ class Command(BaseCommand):
                     print(f' (current: {stat.cpu_request_m}m)')
                 else:
                     print(' (current: not set)')
-                print('    ' + sug.cpu_reason)
+                if sug.cpu_reason:
+                    print('    ' + sug.cpu_reason)
 
             print(f'  priority: {sug.priority}')

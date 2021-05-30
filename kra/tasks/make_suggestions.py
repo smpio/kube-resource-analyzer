@@ -38,6 +38,8 @@ def make_suggestions():
             new_memory_limits_mi = []
             new_cpu_requests_m = []
 
+            pp = percent_priority
+
             container_oom_events = oom_events[(stat.workload_id, stat.container_name)]
             if container_oom_events:
                 oom = container_oom_events[-1]
@@ -45,14 +47,14 @@ def make_suggestions():
                     min_memory_limit = int(oom.container.memory_limit_mi * memory_reserve_multiplier) + 1
                     if stat.memory_limit_mi < min_memory_limit:
                         new_memory_limits_mi.append(min_memory_limit)
-                        priorities.append(200 + ((min_memory_limit / stat.memory_limit_mi) - 1) * 100)
+                        priorities.append(200 + pp(min_memory_limit / stat.memory_limit_mi))
                         memory_reasons.append(f'OOM @ {oom.container.memory_limit_mi} Mi limit')
 
             min_memory_limit = int(stat.max_memory_mi * memory_reserve_multiplier) + 1
             if stat.memory_limit_mi:
                 if stat.memory_limit_mi < min_memory_limit:
                     new_memory_limits_mi.append(min_memory_limit)
-                    priorities.append(100 + ((min_memory_limit / stat.memory_limit_mi) - 1) * 100)
+                    priorities.append(pp(min_memory_limit / stat.memory_limit_mi))
                     memory_reasons.append(f'memory usage {stat.max_memory_mi} Mi near limit {stat.memory_limit_mi} Mi')
             else:
                 new_memory_limits_mi.append(min_memory_limit)
@@ -62,7 +64,7 @@ def make_suggestions():
                 max_cpu_usage = stat.cpu_request_m * cpu_overuse_multiplier
                 if stat.avg_cpu_m > max_cpu_usage:
                     new_cpu_requests_m.append(stat.avg_cpu_m)
-                    priorities.append(100 + ((stat.avg_cpu_m / stat.cpu_request_m) - 1) * 100)
+                    priorities.append(pp(stat.avg_cpu_m / stat.cpu_request_m))
                     cpu_reasons.append(f'avg cpu usage {stat.avg_cpu_m}m exceeds request {stat.cpu_request_m}m too much')
             else:
                 new_cpu_requests_m.append(stat.avg_cpu_m)
@@ -88,3 +90,9 @@ def make_suggestions():
                 sug.new_cpu_request_m = None
 
             save(sug)
+
+
+def percent_priority(ratio):
+    if ratio > 2:
+        ratio = 2
+    return (ratio - 1) * 100
