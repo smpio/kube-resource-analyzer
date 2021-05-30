@@ -1,3 +1,5 @@
+import os
+import pickle
 import logging
 from collections import defaultdict
 
@@ -10,19 +12,32 @@ log = logging.getLogger(__name__)
 
 
 def make_summaries():
-    models.Summary.objects.all().delete()
+    containers_by_pod_id = None
 
-    log.info('Query containers summary...')
-    containers_by_pod_id = defaultdict(list)
-    for c in get_containers_summary():
-        containers_by_pod_id[c.pod_id].append(c)
-    log.info('DONE')
+    summary_dump_filename = os.environ.get('KRA_INTERMEDIATE_DUMP')
+    if summary_dump_filename:
+        try:
+            with open(summary_dump_filename, 'rb') as summary_dump_file:
+                containers_by_pod_id = pickle.load(summary_dump_file)
+        except Exception:
+            log.exception('Failed to load summary dump')
+
+    if containers_by_pod_id is None:
+        log.info('Query containers summary...')
+        containers_by_pod_id = defaultdict(list)
+        for c in get_containers_summary():
+            containers_by_pod_id[c.pod_id].append(c)
+        if summary_dump_filename:
+            with open(summary_dump_filename, 'wb') as summary_dump_file:
+                pickle.dump(containers_by_pod_id, summary_dump_file)
 
     log.info('Collecting results')
 
     pods_by_workload_id = defaultdict(list)
     for pod in models.Pod.objects.order_by('started_at'):
         pods_by_workload_id[pod.workload_id].append(pod)
+
+    models.Summary.objects.all().delete()
 
     with bulk_save() as save:
         for wl in models.Workload.objects.all().order_by('namespace', 'name'):
