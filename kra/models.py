@@ -61,8 +61,10 @@ class Container(models.Model):
 
     class Meta:
         unique_together = [
-            ('pod', 'name'),
             ('pod', 'runtime_id'),
+        ]
+        indexes = [
+            models.Index(fields=['started_at']),
         ]
 
     def __str__(self):

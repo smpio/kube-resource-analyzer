@@ -76,13 +76,13 @@ class CollectorThread(SupervisedThread):
         log.info('Collecting node %s', node.metadata.name)
 
         metrics = {family.name: family for family in text_string_to_metric_families(self.scrap_node(node))}
-        squashed_metrics = defaultdict(lambda: defaultdict(dict))
+        squashed_metrics = defaultdict(dict)
         self.squash(metrics, 'container_memory_working_set_bytes', squashed_metrics)
         self.squash(metrics, 'container_cpu_usage_seconds', squashed_metrics)
 
-        for pod_uid, pod_metrics in squashed_metrics.items():
+        for (pod_uid, container_runtime_id), container_metrics in squashed_metrics.items():
             try:
-                self.collect_pod(pod_uid, pod_metrics)
+                self.collect_container(pod_uid, container_runtime_id, container_metrics)
             except Exception:
                 log.exception('Failed to collect pod')
 
@@ -103,6 +103,7 @@ class CollectorThread(SupervisedThread):
             container_name = sample.labels['container']
             if not container_name or container_name == 'POD':
                 continue
+
             cgroup = sample.labels['id']
             pod_uid, container_runtime_id = parse_cgroup(cgroup)
             if not pod_uid:
@@ -110,23 +111,22 @@ class CollectorThread(SupervisedThread):
             if '-' not in pod_uid:
                 # skip pods started directly by kubelet
                 continue
-            data[pod_uid][container_name][metric_name] = sample.value
-            data[pod_uid][container_name]['runtime_id'] = container_runtime_id
+
+            data[pod_uid, container_runtime_id][metric_name] = sample.value
             # use our own timestamp, because their timestamp differs for each metric
-            # data[pod_uid][container_name]['timestamp'] = sample.timestamp
+            # data[pod_uid, container_runtime_id]['timestamp'] = sample.timestamp
 
-    def collect_pod(self, pod_uid, pod_metrics):
-        containers = {c.name: c for c in models.Container.objects.filter(pod__uid=pod_uid)}
-        for container_name, container_metrics in pod_metrics.items():
-            container = containers.get(container_name)
-            if not container:
-                log.debug('Container %s not found for pod %s', container_metrics['name'], pod_uid)
-                continue
+    def collect_container(self, pod_uid, runtime_id, container_metrics):
+        try:
+            container = models.Container.objects.get(pod__uid=pod_uid, runtime_id=runtime_id)
+        except models.Container.DoesNotExist:
+            log.debug('Container %s not found for pod %s', runtime_id, pod_uid)
+            return
 
-            usage = models.ResourceUsage(container=container)
-            # See
-            # https://stackoverflow.com/questions/65428558/what-is-the-difference-between-container-memory-working-set-bytes-and-contain
-            # https://stackoverflow.com/questions/66832316/what-is-the-relation-between-container-memory-working-set-bytes-metric-and-oom
-            usage.memory_mi = container_metrics['container_memory_working_set_bytes'] / MEBIBYTE + 1
-            usage.cpu_m_seconds = container_metrics['container_cpu_usage_seconds'] * 1000
-            usage.save()
+        usage = models.ResourceUsage(container=container)
+        # See
+        # https://stackoverflow.com/questions/65428558/what-is-the-difference-between-container-memory-working-set-bytes-and-contain
+        # https://stackoverflow.com/questions/66832316/what-is-the-relation-between-container-memory-working-set-bytes-metric-and-oom
+        usage.memory_mi = container_metrics['container_memory_working_set_bytes'] / MEBIBYTE + 1
+        usage.cpu_m_seconds = container_metrics['container_cpu_usage_seconds'] * 1000
+        usage.save()

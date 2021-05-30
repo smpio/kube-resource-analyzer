@@ -123,7 +123,9 @@ def update_containers(pod, mypod):
     mycontainers = {}
 
     for container in pod.spec.containers:
-        data = {}
+        data = {
+            'name': container.name,
+        }
         if container.resources:
             if container.resources.limits:
                 data['memory_limit_mi'] = parse_memory_quantity(container.resources.limits.get('memory'))
@@ -145,11 +147,12 @@ def update_containers(pod, mypod):
         mycontainers[container_status.name]['runtime_id'] = runtime_id
 
     for name, data in mycontainers.items():
-        if not data.get('runtime_id'):
+        runtime_id = data.pop('runtime_id', None)
+        if not runtime_id:
             log.info(f'No runtime id for container {name} in pod {pod.metadata.namespace}/{pod.metadata.name}')
             continue
 
-        models.Container.objects.update_or_create(pod=mypod, name=name, defaults=data)
+        models.Container.objects.update_or_create(pod=mypod, runtime_id=runtime_id, defaults=data)
 
 
 def get_workload_from_pod(pod):
