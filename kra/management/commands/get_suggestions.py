@@ -24,12 +24,19 @@ class Command(BaseCommand):
                   f' (container {stat.container_name})')
 
             if sug.new_memory_limit_mi:
-                print(f'  set memory limit to {sug.new_memory_limit_mi} Mi '
-                      f'(current: {stat.memory_limit_mi} Mi)')
+                print(f'  set memory limit to {sug.new_memory_limit_mi} Mi', end='')
+                if stat.memory_limit_mi:
+                    print(f' (current: {stat.memory_limit_mi} Mi)')
+                else:
+                    print(' (current: not set)')
+                print('    ' + sug.memory_reason)
 
             if sug.new_cpu_request_m:
-                print(f'  set CPU request to {sug.new_cpu_request_m}m, '
-                      f'(current: {stat.cpu_request_m}m)')
+                print(f'  set CPU request to {sug.new_cpu_request_m}m', end='')
+                if stat.cpu_request_m:
+                    print(f' (current: {stat.cpu_request_m}m)')
+                else:
+                    print(' (current: not set)')
+                print('    ' + sug.cpu_reason)
 
             print(f'  priority: {sug.priority}')
-            print('  ' + sug.reason)

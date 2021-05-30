@@ -19,7 +19,8 @@ class NestedSuggestionSerializer(serializers.ModelSerializer):
             'done_at',
             'new_memory_limit_mi',
             'new_cpu_request_m',
-            'reason',
+            'memory_reason',
+            'cpu_reason',
             'priority',
         ]
 

@@ -31,7 +31,8 @@ def make_suggestions():
             except KeyError:
                 sug = models.Suggestion(summary=stat)
 
-            reasons = []
+            memory_reasons = []
+            cpu_reasons = []
             priorities = []
             new_memory_limits_mi = []
             new_cpu_requests_m = []
@@ -43,22 +44,23 @@ def make_suggestions():
                     min_memory_limit = int(oom.container.memory_limit_mi * memory_reserve_multiplier) + 1
                     if stat.memory_limit_mi < min_memory_limit:
                         new_memory_limits_mi.append(min_memory_limit)
-                        priorities.append(1000 + ((min_memory_limit / stat.memory_limit_mi) - 1) * 100)
-                        reasons.append(f'OOM @ {oom.container.memory_limit_mi} Mi limit')
+                        priorities.append(200 + ((min_memory_limit / stat.memory_limit_mi) - 1) * 100)
+                        memory_reasons.append(f'OOM @ {oom.container.memory_limit_mi} Mi limit')
 
             if stat.memory_limit_mi:
                 min_memory_limit = int(stat.max_memory_mi * memory_reserve_multiplier) + 1
                 if stat.memory_limit_mi < min_memory_limit:
                     new_memory_limits_mi.append(min_memory_limit)
-                    priorities.append(1000 + ((min_memory_limit / stat.memory_limit_mi) - 1) * 100)
-                    reasons.append(f'Recorded memory usage {stat.max_memory_mi} Mi')
+                    priorities.append(100 + ((min_memory_limit / stat.memory_limit_mi) - 1) * 100)
+                    memory_reasons.append(f'recorded memory usage {stat.max_memory_mi} > limit {stat.memory_limit_mi} Mi')
 
             if not priorities:
                 if sug.id:
                     sug.delete()
                 continue
 
-            sug.reason = '; '.join(reasons)
+            sug.memory_reason = '; '.join(memory_reasons)
+            sug.cpu_reason = '; '.join(cpu_reasons)
             sug.priority = max(priorities)
 
             if new_memory_limits_mi:

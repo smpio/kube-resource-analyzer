@@ -154,7 +154,9 @@ class Suggestion(models.Model):
     new_memory_limit_mi = models.PositiveIntegerField(blank=True, null=True)
     new_cpu_request_m = models.PositiveIntegerField(blank=True, null=True)
 
-    reason = models.TextField(blank=True)
+    memory_reason = models.TextField(blank=True)
+    cpu_reason = models.TextField(blank=True)
+
     priority = models.IntegerField(default=0)
 
 
