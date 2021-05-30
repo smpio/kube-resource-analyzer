@@ -36,7 +36,7 @@ def get_containers_summary():
                             memory_mi,
                             (
                                 CASE
-                                    WHEN lag(measured_at) OVER w IS NULL
+                                    WHEN lag(measured_at) OVER w IS NOT NULL
                                         THEN memory_mi * extract(epoch FROM (measured_at - lag(measured_at) OVER w))
                                         ELSE memory_mi * extract(epoch FROM (measured_at - c.started_at))
                                 END
