@@ -12,10 +12,10 @@ class Command(BaseCommand):
             .select_related('container__pod__workload')
         for ev in qs.iterator():
             wl = ev.container.pod.workload
-            if ev.victim_pid:
-                msg = f'(Killed {ev.victim_comm} {ev.victim_pid})'
-            elif ev.target_pid:
-                msg = f'(Kill {ev.target_comm} {ev.target_pid})'
+            if ev.victim_comm:
+                msg = f'killed {ev.victim_comm}({ev.victim_pid or "?"})'
+            elif ev.target_comm:
+                msg = f'kill {ev.target_comm}({ev.target_pid or "?"})'
             else:
                 msg = ''
-            print(f'{ev.happened_at} {wl.kind.name} {wl.namespace}/{wl.name} {msg}')
+            print(f'{ev.happened_at} {wl.kind.name} {wl.namespace}/{wl.name}: {msg}')
