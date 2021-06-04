@@ -160,12 +160,27 @@ def get_workload_from_pod(pod):
     if owner is None:
         return None
     kind = models.WorkloadKind[owner.kind]
-    wl, _ = models.Workload.objects.get_or_create(
+    wl, _ = models.Workload.objects.update_or_create(
         kind=kind,
         namespace=pod.metadata.namespace,
-        name=owner.metadata.name
+        name=owner.metadata.name,
+        defaults={
+            'affinity': get_affinity_from_pod(pod),
+        }
     )
     return wl
+
+
+def get_affinity_from_pod(pod):
+    if pod.spec.affinity:
+        affinity = pod.spec.affinity.to_dict()
+    else:
+        affinity = {}
+
+    if pod.spec.node_selector:
+        affinity['node_selector'] = pod.spec.node_selector
+
+    return affinity or None
 
 
 def get_owner_recursive(obj):

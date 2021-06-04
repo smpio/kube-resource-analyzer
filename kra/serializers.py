@@ -53,9 +53,7 @@ class WorkloadSerializer(serializers.ModelSerializer):
             'kind',
             'namespace',
             'name',
-            'priority',
-            'auto_downgrade',
-            'min_auto_downgrade_interval_sec',
+            'affinity',
             'summary_set',
             'stats',
         ]

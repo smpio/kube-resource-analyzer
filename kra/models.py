@@ -20,6 +20,7 @@ class Workload(models.Model):
     kind = EnumField(enum_class=WorkloadKind)
     namespace = models.CharField(max_length=255)
     name = models.CharField(max_length=255)
+    affinity = models.JSONField(blank=True, null=True)
 
     # UNUSED
     priority = models.FloatField(validators=[MinValueValidator(0)], default=1)
