@@ -16,7 +16,7 @@ class Command(BaseCommand):
         if options['update_all'] or options['update']:
             tasks.make_suggestions()
 
-        for sug in models.Suggestion.objects.order_by('-priority').select_related('summary'):
+        for sug in models.Suggestion.objects.order_by('-priority').select_related('summary__workload'):
             stat = sug.summary
             workload = stat.workload
 
