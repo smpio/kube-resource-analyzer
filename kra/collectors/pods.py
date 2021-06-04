@@ -160,12 +160,18 @@ def get_workload_from_pod(pod):
     if owner is None:
         return None
     kind = models.WorkloadKind[owner.kind]
+
+    if kind == models.WorkloadKind.DaemonSet:
+        affinity = None
+    else:
+        affinity = get_affinity_from_pod(pod)
+
     wl, _ = models.Workload.objects.update_or_create(
         kind=kind,
         namespace=pod.metadata.namespace,
         name=owner.metadata.name,
         defaults={
-            'affinity': get_affinity_from_pod(pod),
+            'affinity': affinity,
         }
     )
     return wl
