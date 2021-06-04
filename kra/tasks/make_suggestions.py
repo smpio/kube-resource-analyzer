@@ -12,9 +12,6 @@ log = logging.getLogger(__name__)
 
 
 def make_suggestions():
-    memory_reserve_multiplier = 1 + settings.BASE_MEMORY_RESERVE_FRACTION
-    cpu_overuse_multiplier = 1 + settings.BASE_CPU_OVERUSE_FRACTION
-
     suggestions = models.Suggestion.objects.in_bulk(field_name='summary_id')
 
     oom_events = defaultdict(list)
@@ -43,67 +40,90 @@ def make_suggestions():
             except KeyError:
                 sug = models.Suggestion(summary=stat)
 
-            memory_reasons = []
-            cpu_reasons = []
-            priorities = []
-            new_memory_limits_mi = []
-            new_cpu_requests_m = []
+            new_memory_limit_mi, memory_priority, memory_reason = \
+                suggest_memory(stat, oom_events[(stat.workload_id, stat.container_name)], max_memory_mi)
 
-            pp = percent_priority
+            new_cpu_request_m, cpu_priority, cpu_reason = suggest_cpu(stat, max_memory_mi)
 
-            container_oom_events = oom_events[(stat.workload_id, stat.container_name)]
-            if container_oom_events:
-                oom = container_oom_events[-1]
-                if oom.container.memory_limit_mi and stat.memory_limit_mi:
-                    min_memory_limit = int(oom.container.memory_limit_mi * memory_reserve_multiplier) + 1
-                    if stat.memory_limit_mi < min_memory_limit:
-                        new_memory_limits_mi.append(min_memory_limit)
-                        priorities.append(200 + pp(min_memory_limit / max_memory_mi))
-                        memory_reasons.append(f'OOM @ {oom.container.memory_limit_mi} Mi limit')
-
-            min_memory_limit = int(stat.max_memory_mi * memory_reserve_multiplier) + 1
-            if stat.memory_limit_mi:
-                if stat.memory_limit_mi < min_memory_limit:
-                    new_memory_limits_mi.append(min_memory_limit)
-                    priorities.append(pp(min_memory_limit / max_memory_mi))
-                    memory_reasons.append(f'memory usage {stat.max_memory_mi} Mi near limit {stat.memory_limit_mi} Mi')
-            else:
-                new_memory_limits_mi.append(min_memory_limit)
-                priorities.append(1)
-
-            if stat.cpu_request_m:
-                max_cpu_usage = stat.cpu_request_m * cpu_overuse_multiplier
-                if stat.avg_cpu_m > max_cpu_usage:
-                    new_cpu_requests_m.append(stat.avg_cpu_m)
-                    priorities.append(pp(stat.avg_cpu_m / max_cpu_m))
-                    cpu_reasons.append(f'avg cpu usage {stat.avg_cpu_m}m exceeds request {stat.cpu_request_m}m too much')
-            else:
-                new_cpu_requests_m.append(stat.avg_cpu_m)
-                priorities.append(1)
-
-            if not priorities:
+            if new_memory_limit_mi is None and new_cpu_request_m is None:
                 if sug.id:
                     sug.delete()
                 continue
 
-            sug.memory_reason = '; '.join(memory_reasons)
-            sug.cpu_reason = '; '.join(cpu_reasons)
-            sug.priority = sum(priorities)
-
-            if new_memory_limits_mi:
-                sug.new_memory_limit_mi = max(new_memory_limits_mi)
-            else:
-                sug.new_memory_limit_mi = None
-
-            if new_cpu_requests_m:
-                sug.new_cpu_request_m = max(new_cpu_requests_m)
-            else:
-                sug.new_cpu_request_m = None
+            sug.memory_reason = memory_reason
+            sug.cpu_reason = cpu_reason
+            sug.priority = memory_priority + cpu_priority
+            sug.new_memory_limit_mi = new_memory_limit_mi
+            sug.new_cpu_request_m = new_cpu_request_m
 
             save(sug)
 
 
-def percent_priority(ratio):
+def suggest_memory(stat, oom_events, priority_denominator):
+    new_limit = None
+    priority = 0
+    reason = ''
+
+    target_limit = round(stat.max_memory_mi * settings.MEM_TARGET_REQUEST)
+
+    for oom in oom_events:
+        if oom.container.memory_limit_mi:
+            target_limit2 = round(oom.container.memory_limit_mi * settings.MEM_TARGET_REQUEST)
+            if target_limit2 > target_limit:
+                target_limit = target_limit2
+                priority = 2 * (10 ** settings.PRIORITY_EXP)
+                reason = f'OOM @ {oom.container.memory_limit_mi} Mi limit'
+
+    lower_bound = round(target_limit * settings.MEM_BOUNDS[0])
+    upper_bound = round(target_limit * settings.MEM_BOUNDS[1])
+
+    if stat.memory_limit_mi:
+        if stat.memory_limit_mi < lower_bound:
+            new_limit = target_limit
+            priority = priority + pp((target_limit - stat.memory_limit_mi) / priority_denominator)
+            if not reason:
+                reason = f'memory limit {stat.memory_limit_mi} Mi < lower bound {lower_bound} Mi'
+        elif stat.memory_limit_mi > upper_bound:
+            new_limit = target_limit
+            priority = pp((stat.memory_limit_mi - target_limit) / priority_denominator)
+            reason = f'memory limit {stat.memory_limit_mi} Mi > upper bound {upper_bound} Mi'
+    else:
+        new_limit = target_limit
+        priority = 1
+
+    if new_limit is None:
+        priority = 0
+        reason = ''
+
+    return new_limit, priority, reason
+
+
+def suggest_cpu(stat, priority_denominator):
+    new_request = None
+    priority = 0
+    reason = ''
+
+    target_limit = round(stat.avg_cpu_m * settings.CPU_TARGET_REQUEST)
+    lower_bound = round(target_limit * settings.CPU_BOUNDS[0])
+    upper_bound = round(target_limit * settings.CPU_BOUNDS[1])
+
+    if stat.cpu_request_m:
+        if stat.cpu_request_m < lower_bound:
+            new_request = target_limit
+            priority = pp((target_limit - stat.cpu_request_m) / priority_denominator)
+            reason = f'cpu request {stat.cpu_request_m}m < lower bound {lower_bound}m'
+        elif stat.cpu_request_m > upper_bound:
+            new_request = target_limit
+            priority = pp((stat.cpu_request_m - target_limit) / priority_denominator)
+            reason = f'cpu request {stat.cpu_request_m}m > upper bound {lower_bound}m'
+    else:
+        new_request = target_limit
+        priority = 1
+
+    return new_request, priority, reason
+
+
+def pp(ratio):
     if ratio > 1:
         ratio = 1
-    return ratio * 100
+    return ratio * (10 ** settings.PRIORITY_EXP)
