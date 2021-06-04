@@ -83,6 +83,9 @@ class ResourceUsage(models.Model):
             models.Index(fields=['container_id', 'measured_at']),
         ]
 
+    def __str__(self):
+        return f'{self.memory_mi} Mi, {self.cpu_m_seconds} m*sec'
+
 
 class OOMEvent(models.Model):
     container = models.ForeignKey('Container', on_delete=models.CASCADE)
@@ -96,6 +99,9 @@ class OOMEvent(models.Model):
         indexes = [
             models.Index(fields=['happened_at']),
         ]
+
+    def __str__(self):
+        return str(self.happened_at)
 
 
 # maybe add resource kind enum
@@ -111,6 +117,9 @@ class Adjustment(models.Model):
         indexes = [
             models.Index(fields=['done_at']),
         ]
+
+    def __str__(self):
+        return str(self.workload)
 
 
 class Summary(models.Model):
@@ -130,6 +139,9 @@ class Summary(models.Model):
 
     class Meta:
         unique_together = ('workload', 'container_name')
+
+    def __str__(self):
+        return f'{self.workload} {self.container_name}'
 
 
 class InstanceSummary(models.Model):
@@ -158,6 +170,9 @@ class Suggestion(models.Model):
     cpu_reason = models.TextField(blank=True)
 
     priority = models.IntegerField(default=0)
+
+    def __str__(self):
+        return str(self.summary)
 
 
 class PSRecord(models.Model):
