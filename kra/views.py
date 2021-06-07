@@ -11,6 +11,8 @@ class WorkloadViewSet(viewsets.ModelViewSet):
         qs = models.Workload.objects.all()
         if self.request.GET.get('summary') is not None:
             qs = qs.prefetch_related('summary_set__suggestion')
+        if self.request.GET.get('adjustments') is not None:
+            qs = qs.prefetch_related('adjustment_set__result')
         return qs
 
     def get_serializer(self, *args, **kwargs):
@@ -20,6 +22,9 @@ class WorkloadViewSet(viewsets.ModelViewSet):
 
         if self.request.GET.get('summary') is None:
             del s.fields['summary_set']
+
+        if self.request.GET.get('adjustments') is None:
+            del s.fields['adjustment_set']
 
         if self.request.GET.get('stats') is None:
             del s.fields['stats']

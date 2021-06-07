@@ -45,6 +45,54 @@ class NestedSummarySerializer(serializers.ModelSerializer):
     suggestion = NestedSuggestionSerializer(read_only=True)
 
 
+class NestedContainerAdjustmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.ContainerAdjustment
+        fields = [
+            'container_name',
+            'new_memory_limit_mi',
+            'new_cpu_request_m',
+        ]
+
+
+class OperationResultSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.OperationResult
+        fields = '__all__'
+
+
+class AdjustmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Adjustment
+        fields = [
+            'id',
+            'workload',
+            'scheduled_for',
+            'result',
+            'containers',
+        ]
+
+    result = OperationResultSerializer(read_only=True)
+    containers = NestedContainerAdjustmentSerializer(many=True)
+
+    def create(self, validated_data):
+        containers_data = validated_data.pop('containers')
+        instance = models.Adjustment.objects.create(**validated_data)
+        models.ContainerAdjustment.objects.bulk_create(
+            models.ContainerAdjustment(adjustment=instance, **d) for d in containers_data)
+        return instance
+
+    def update(self, instance, validated_data):
+        containers_data = validated_data.pop('containers')
+        models.ContainerAdjustment.objects.filter(adjustment=instance).delete()
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        models.ContainerAdjustment.objects.bulk_create(
+            models.ContainerAdjustment(adjustment=instance, **d) for d in containers_data)
+        return instance
+
+
 class WorkloadSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Workload
@@ -55,11 +103,13 @@ class WorkloadSerializer(serializers.ModelSerializer):
             'name',
             'affinity',
             'summary_set',
+            'adjustment_set',
             'stats',
         ]
     serializer_choice_field = ChoiceDisplayField
 
     summary_set = NestedSummarySerializer(many=True, read_only=True)
+    adjustment_set = AdjustmentSerializer(many=True, read_only=True)
     stats = serializers.SerializerMethodField('get_stats')
 
     def get_stats(self, workload):
@@ -134,12 +184,6 @@ class ResourceUsageSerializer(serializers.ModelSerializer):
 class OOMEventSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.OOMEvent
-        fields = '__all__'
-
-
-class AdjustmentSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = models.Adjustment
         fields = '__all__'
 
 

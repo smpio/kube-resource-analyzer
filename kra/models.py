@@ -39,7 +39,7 @@ class Pod(models.Model):
     workload = models.ForeignKey('Workload', on_delete=models.CASCADE, blank=True, null=True)
     namespace = models.CharField(max_length=255)
     name = models.CharField(max_length=255)
-    spec_hash = models.CharField(max_length=32)  # maybe add WorkloadRevision proxy model
+    spec_hash = models.CharField(max_length=32)
     started_at = models.DateTimeField()
     gone_at = models.DateTimeField(blank=True, null=True)
 
@@ -105,22 +105,25 @@ class OOMEvent(models.Model):
         return str(self.happened_at)
 
 
-# maybe add resource kind enum
 class Adjustment(models.Model):
     workload = models.ForeignKey('Workload', on_delete=models.CASCADE)
-    done_at = models.DateTimeField()
-    pre_memory_limit_mi = models.PositiveIntegerField(blank=True, null=True)
-    new_memory_limit_mi = models.PositiveIntegerField(blank=True, null=True)
-    pre_cpu_request_m = models.PositiveIntegerField(blank=True, null=True)
-    new_cpu_request_m = models.PositiveIntegerField(blank=True, null=True)
+    scheduled_for = models.DateTimeField()
+    result = models.ForeignKey('OperationResult', on_delete=models.PROTECT, blank=True, null=True)
 
     class Meta:
         indexes = [
-            models.Index(fields=['done_at']),
+            models.Index(fields=['scheduled_for']),
         ]
 
     def __str__(self):
         return str(self.workload)
+
+
+class ContainerAdjustment(models.Model):
+    adjustment = models.ForeignKey('Adjustment', on_delete=models.CASCADE, related_name='containers')
+    container_name = models.CharField(max_length=255)
+    new_memory_limit_mi = models.PositiveIntegerField(blank=True, null=True)
+    new_cpu_request_m = models.PositiveIntegerField(blank=True, null=True)
 
 
 class Summary(models.Model):
@@ -174,6 +177,12 @@ class Suggestion(models.Model):
 
     def __str__(self):
         return str(self.summary)
+
+
+class OperationResult(models.Model):
+    finished_at = models.DateTimeField()
+    data = models.JSONField(blank=True, null=True)
+    error = models.JSONField(blank=True, null=True)
 
 
 class PSRecord(models.Model):
