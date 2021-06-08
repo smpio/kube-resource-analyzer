@@ -116,7 +116,7 @@ class Adjustment(models.Model):
         ]
 
     def __str__(self):
-        return str(self.workload)
+        return f'{self.workload} - {self.result or self.scheduled_for}'
 
 
 class ContainerAdjustment(models.Model):
@@ -183,6 +183,9 @@ class OperationResult(models.Model):
     finished_at = models.DateTimeField()
     data = models.JSONField(blank=True, null=True)
     error = models.JSONField(blank=True, null=True)
+
+    def __str__(self):
+        return str(self.data or 'OK')
 
 
 class PSRecord(models.Model):
