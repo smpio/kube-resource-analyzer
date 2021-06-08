@@ -12,21 +12,26 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         delete_before = timezone.now() - settings.MAX_RETENTION
 
-        deleted, _ = models.Adjustment.objects.filter(result__finished_at__lt=delete_before).delete()
+        deleted = delete(models.Adjustment.objects.filter(result__finished_at__lt=delete_before))
         print(f'Deleted {deleted} adjustments')
 
-        deleted, _ = models.OOMEvent.objects.filter(happened_at__lt=delete_before).delete()
+        deleted = delete(models.OOMEvent.objects.filter(happened_at__lt=delete_before))
         print(f'Deleted {deleted} OOM events')
 
-        deleted, _ = models.ResourceUsage.objects.filter(measured_at__lt=delete_before).delete()
+        deleted = delete(models.ResourceUsage.objects.filter(measured_at__lt=delete_before))
         print(f'Deleted {deleted} resource usage measurements')
 
-        deleted, _ = models.Pod.objects.filter(gone_at__lt=delete_before).delete()
+        deleted = delete(models.Pod.objects.filter(gone_at__lt=delete_before))
         print(f'Deleted {deleted} pods')
 
-        deleted, _ = models.Workload.objects.filter(pod=None).delete()
+        deleted = delete(models.Workload.objects.filter(pod=None))
         print(f'Deleted {deleted} workloads')
 
         print('VACUUM ANALYZE')
         with connection.cursor() as c:
             c.execute(f'VACUUM (ANALYZE)')
+
+
+def delete(qs):
+    total, per_model = qs.delete()
+    return per_model.get(qs.model._meta.label, 0)
