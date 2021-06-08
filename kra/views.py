@@ -2,6 +2,7 @@ from rest_framework import viewsets
 
 from kra import models
 from kra import serializers
+from kra.tasks.apply_adjustment import apply_adjustment
 
 
 class WorkloadViewSet(viewsets.ModelViewSet):
@@ -62,6 +63,14 @@ class OOMEventViewSet(viewsets.ModelViewSet):
 class AdjustmentViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.AdjustmentSerializer
     queryset = models.Adjustment.objects.all()
+
+    def perform_create(self, serializer):
+        adj = serializer.save()
+        apply_adjustment.apply_async(args=[adj.id])
+
+    def perform_update(self, serializer):
+        adj = serializer.save()
+        apply_adjustment.apply_async(args=[adj.id])
 
 
 class SummaryViewSet(viewsets.ModelViewSet):

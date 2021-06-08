@@ -3,8 +3,6 @@
 import datetime
 from utils.django.settings import *
 
-CACHES['default'] = CACHES['locmem']
-
 if env('DEV_ENV'):
     INSTALLED_APPS += ['corsheaders']
     MIDDLEWARE = ['corsheaders.middleware.CorsMiddleware'] + MIDDLEWARE
