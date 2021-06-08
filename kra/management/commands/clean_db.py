@@ -12,7 +12,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         delete_before = timezone.now() - settings.MAX_RETENTION
 
-        deleted, _ = models.Adjustment.objects.filter(done_at__lt=delete_before).delete()
+        deleted, _ = models.Adjustment.objects.filter(result__finished_at__lt=delete_before).delete()
         print(f'Deleted {deleted} adjustments')
 
         deleted, _ = models.OOMEvent.objects.filter(happened_at__lt=delete_before).delete()
