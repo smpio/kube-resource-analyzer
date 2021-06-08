@@ -13,3 +13,4 @@ celery
 redlock
 raven
 graypy
+certifi
