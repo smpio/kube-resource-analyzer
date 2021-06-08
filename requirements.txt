@@ -11,3 +11,5 @@ prometheus-client
 django-redis
 celery
 redlock
+raven
+graypy
