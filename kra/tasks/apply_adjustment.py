@@ -12,17 +12,15 @@ log = logging.getLogger(__name__)
 
 
 @task
-def apply_adjustment(adj):
-    if not isinstance(adj, models.Adjustment):
-        adj = models.Adjustment.objects.select_related('workload').get(id=adj)
-
-    with get_lock(f'adjustment:{adj.id}') as is_locked:
+def apply_adjustment(adj_id):
+    with get_lock(f'adjustment:{adj_id}') as is_locked:
+        adj = models.Adjustment.objects.get(id=adj_id)
         if not is_locked:
             log.info('Adjustment %s already locked', adj)
             return
 
         if adj.result_id is not None:
-            log.info('Adjustment %s already finished', adj)
+            log.info('Adjustment %s already done', adj)
             return
 
         if adj.scheduled_for > timezone.now():

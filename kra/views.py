@@ -66,11 +66,11 @@ class AdjustmentViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         adj = serializer.save()
-        apply_adjustment.apply_async(args=[adj.id])
+        apply_adjustment.delay(adj.id)
 
     def perform_update(self, serializer):
         adj = serializer.save()
-        apply_adjustment.apply_async(args=[adj.id])
+        apply_adjustment.delay(adj.id)
 
 
 class SummaryViewSet(viewsets.ModelViewSet):
