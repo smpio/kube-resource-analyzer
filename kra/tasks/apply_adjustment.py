@@ -32,6 +32,7 @@ def apply_adjustment(adj_id):
             _apply_adjustment(adj)
         except Exception as err:
             adj.result = models.OperationResult.objects.create(finished_at=timezone.now(), error=str(err))
+            log.exception('Failed to apply adjustment %s', adj)
         else:
             adj.result = models.OperationResult.objects.create(finished_at=timezone.now())
 
@@ -54,6 +55,7 @@ def _apply_adjustment(adj):
     container_adjustments = {ca.container_name: ca for ca in adj.containers.all()}
     json_patch = [_get_json_patch_op(idx, wl.kind, container_adjustments[c.name]) for (idx, c) in enumerate(containers)]
 
+    log.debug('Applying patch to %s: %s', wl, json_patch)
     patch_func = kube.patch_funcs[wl.kind]
     patch_func(wl.name, wl.namespace, json_patch)
 
