@@ -13,7 +13,7 @@ from utils.kubernetes.watch import KubeWatcher
 from utils.signal import install_shutdown_signal_handlers
 from utils.django.db import fix_long_connections
 
-from kra import models, kube_config
+from kra import models
 from kra.utils import parse_cgroup
 
 log = logging.getLogger(__name__)
@@ -23,7 +23,6 @@ MEBIBYTE = 1024 * 1024
 
 def main():
     install_shutdown_signal_handlers()
-    kube_config.init()
 
     v1 = kubernetes.client.CoreV1Api()
     watcher = KubeWatcher(v1.list_node)

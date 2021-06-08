@@ -10,7 +10,7 @@ from utils.kubernetes.watch import KubeWatcher, WatchEventType
 from utils.signal import install_shutdown_signal_handlers
 from utils.django.db import fix_long_connections
 
-from kra import models, kube_config
+from kra import models
 from kra.utils import parse_cgroup
 
 log = logging.getLogger(__name__)
@@ -22,7 +22,6 @@ victim_message_re = re.compile(r'Killed\s+process\s+(\d+)\s+\((.*)\)')
 
 def main():
     install_shutdown_signal_handlers()
-    kube_config.init()
 
     q = queue.Queue()
     threads = SupervisedThreadGroup()

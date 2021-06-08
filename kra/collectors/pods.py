@@ -12,7 +12,8 @@ from utils.kubernetes.watch import KubeWatcher, WatchEventType
 from utils.signal import install_shutdown_signal_handlers
 from utils.django.db import retry_on_connection_close
 
-from kra import models, kube_config
+from kra import kube
+from kra import models
 
 log = logging.getLogger(__name__)
 container_runtime_id_re = re.compile(r'^\w+://(.+)$')
@@ -22,7 +23,6 @@ MEBIBYTE = 1024 * 1024
 
 def main():
     install_shutdown_signal_handlers()
-    kube_config.init()
 
     q = queue.Queue()
     threads = SupervisedThreadGroup()
@@ -198,7 +198,7 @@ def get_owner_recursive(obj):
             continue
 
         read_func = kind_to_read_func(ref.kind)
-        owner = read_func(name=ref.name, namespace=obj.metadata.namespace)
+        owner = read_func(ref.name, obj.metadata.namespace)
         if owner is None:
             return None
 
@@ -212,22 +212,9 @@ def get_owner_recursive(obj):
 
 
 def kind_to_read_func(kind):
-    if kind == 'ReplicaSet':
-        return kubernetes.client.AppsV1Api().read_namespaced_replica_set
-    elif kind == 'Deployment':
-        return kubernetes.client.AppsV1Api().read_namespaced_deployment
-    elif kind == 'DaemonSet':
-        return kubernetes.client.AppsV1Api().read_namespaced_daemon_set
-    elif kind == 'CronJob':
-        return kubernetes.client.BatchV1beta1Api().read_namespaced_cron_job
-    elif kind == 'StatefulSet':
-        return kubernetes.client.AppsV1Api().read_namespaced_stateful_set
-    elif kind == 'Job':
-        return kubernetes.client.BatchV1Api().read_namespaced_job
-    elif kind == 'Node':
+    if kind == 'Node':
         return lambda name, ns: None
-    else:
-        raise Exception('Unknown controller kind: %s', kind)
+    return kube.read_funcs[models.WorkloadKind[kind]]
 
 
 def parse_memory_quantity(q):
