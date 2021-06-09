@@ -137,6 +137,9 @@ class WorkloadSerializer(serializers.ModelSerializer):
                 'cpu_request_m': container.cpu_request_m,
             })
 
+            if container.pod.gone_at is None:
+                stats[container.name]['is_running'] = True
+
         for container_name, container_ids in container_ids_by_name.items():
             if step:
                 usage_measurements = to_buckets(
