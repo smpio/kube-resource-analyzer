@@ -42,6 +42,13 @@ Analyze workload resource usage and automatically suggest adjustments to request
 
 Использовать отчет [gke_resource_usage](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-usage-metering).
 
+### Оптимизация подов
+
+* ручной анализ загруженности web воркеров и их скейлинг
+* анализ загруженности web воркеров и авто-скейлинг
+* автоперезапуск подов с утечками памяти (указывать частоту перезапуска в аннотации)
+* threaded workers + смотри личный TODO
+* pgpool, pgbouncer
 
 ## Выбор хранилища метрик
 
