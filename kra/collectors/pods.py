@@ -19,6 +19,7 @@ log = logging.getLogger(__name__)
 container_runtime_id_re = re.compile(r'^\w+://(.+)$')
 
 MEBIBYTE = 1024 * 1024
+OOM_MATCH_INTERVAL = timezone.timedelta(seconds=5)
 
 
 def main():
@@ -121,6 +122,7 @@ def update_pod(pod):
 
 def update_containers(pod, mypod):
     mycontainers = {}
+    oom_events = {}
 
     for container in pod.spec.containers:
         data = {
@@ -135,16 +137,20 @@ def update_containers(pod, mypod):
         mycontainers[container.name] = data
 
     for container_status in pod.status.container_statuses:
-        if container_status.state.running:
-            mycontainers[container_status.name]['started_at'] = container_status.state.running.started_at
-        elif container_status.state.terminated:
-            mycontainers[container_status.name]['started_at'] = container_status.state.terminated.started_at
+        runtime_id = None
+        started_at = None
 
-        if not container_status.container_id:
-            # container is terminating
-            continue
-        runtime_id = parse_container_runtime_id(container_status.container_id)
+        if container_status.state.running:
+            started_at = container_status.state.running.started_at
+        elif container_status.state.terminated:
+            runtime_id = parse_container_runtime_id(container_status.state.terminated.container_id)
+            if runtime_id and container_status.state.terminated.reason == 'OOMKilled':
+                oom_events[runtime_id] = models.OOMEvent(happened_at=container_status.state.terminated.finished_at)
+            started_at = container_status.state.terminated.started_at
+
+        runtime_id = parse_container_runtime_id(container_status.container_id) or runtime_id
         mycontainers[container_status.name]['runtime_id'] = runtime_id
+        mycontainers[container_status.name]['started_at'] = started_at
 
     for name, data in mycontainers.items():
         runtime_id = data.pop('runtime_id', None)
@@ -154,7 +160,19 @@ def update_containers(pod, mypod):
         if not data.get('started_at'):
             log.warning('No started_at for container %s in pod %s/%s', name, pod.metadata.namespace, pod.metadata.name)
             continue
-        models.Container.objects.update_or_create(pod=mypod, runtime_id=runtime_id, defaults=data)
+
+        c, _ = models.Container.objects.update_or_create(pod=mypod, runtime_id=runtime_id, defaults=data)
+        oom = oom_events.pop(runtime_id, None)
+        if oom:
+            save_oom(c, oom)
+
+    for runtime_id, oom in oom_events.items():
+        try:
+            c = models.Container.objects.get(pod=mypod, runtime_id=runtime_id)
+        except models.Container.DoesNotExists:
+            pass
+        else:
+            save_oom(c, oom)
 
 
 def get_workload_from_pod(pod):
@@ -232,6 +250,8 @@ def parse_cpu_quantity(q):
 
 
 def parse_container_runtime_id(container_id):
+    if not container_id:
+        return None
     match = container_runtime_id_re.match(container_id)
     if match is None:
         return None
@@ -240,6 +260,16 @@ def parse_container_runtime_id(container_id):
 
 def get_pod_spec_hash(pod):
     return pod.metadata.labels.get('controller-revision-hash') or pod.metadata.labels.get('pod-template-hash') or ''
+
+
+def save_oom(container, oom):
+    if models.OOMEvent.objects.filter(container=container,
+                                      happened_at__gt=oom.happened_at - OOM_MATCH_INTERVAL,
+                                      happened_at__lt=oom.happened_at + OOM_MATCH_INTERVAL).exists():
+        return
+
+    oom.container = container
+    oom.save()
 
 
 if __name__ == '__main__':
