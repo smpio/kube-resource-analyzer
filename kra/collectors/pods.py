@@ -149,9 +149,11 @@ def update_containers(pod, mypod):
     for name, data in mycontainers.items():
         runtime_id = data.pop('runtime_id', None)
         if not runtime_id:
-            log.info(f'No runtime id for container {name} in pod {pod.metadata.namespace}/{pod.metadata.name}')
+            log.warning('No runtime_id for container %s in pod %s/%s', name, pod.metadata.namespace, pod.metadata.name)
             continue
-
+        if not data.get('started_at'):
+            log.warning('No started_at for container %s in pod %s/%s', name, pod.metadata.namespace, pod.metadata.name)
+            continue
         models.Container.objects.update_or_create(pod=mypod, runtime_id=runtime_id, defaults=data)
 
 
