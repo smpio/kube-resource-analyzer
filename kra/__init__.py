@@ -10,3 +10,7 @@ kube_config.init()
 
 class App(AppConfig):
     name = 'kra'
+
+    def ready(self):
+        from . import signal_handlers
+        signal_handlers.install()

@@ -10,7 +10,6 @@ from utils.kubernetes.watch import KubeWatcher, WatchEventType
 from utils.signal import install_shutdown_signal_handlers
 from utils.django.db import fix_long_connections
 
-from kra import tasks
 from kra import models
 from kra.utils import parse_cgroup
 
@@ -111,13 +110,10 @@ class HandlerThread(SupervisedThread):
         log.info(f'OOM in {oom.container.pod.namespace}/{oom.container.pod.name}, container: {oom.container.name}, '
                  f'target: {oom.target_pid} ({oom.target_comm}), victim: {oom.victim_pid} ({oom.victim_comm})')
 
-        tasks.make_suggestion(oom.container.pod.workload_id, oom.container.name)
-
 
 def get_ps_record(event, pid):
     node = event.involved_object.name
     return models.PSRecord.objects.filter(hostname=node, pid=pid, ts__lte=event.last_timestamp).order_by('-ts').first()
-
 
 
 if __name__ == '__main__':
