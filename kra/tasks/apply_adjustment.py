@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
 @task
 def apply_adjustment(adj_id):
     with get_lock(f'adjustment:{adj_id}') as is_locked:
-        adj = models.Adjustment.objects.get(id=adj_id)
+        adj = models.Adjustment.objects.select_related('workload').get(id=adj_id)
         if not is_locked:
             log.info('Adjustment %s already locked', adj)
             return
