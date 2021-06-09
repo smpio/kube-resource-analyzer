@@ -1,3 +1,4 @@
+import math
 import logging
 from collections import defaultdict
 
@@ -50,18 +51,18 @@ def suggest_memory(stat, oom_events):
     priority = 0
     reason = ''
 
-    target_limit = round(stat.max_memory_mi * settings.MEM_TARGET_REQUEST)
+    target_limit = math.ceil(stat.max_memory_mi * settings.MEM_TARGET_REQUEST)
 
     for oom in oom_events:
         if oom.container.memory_limit_mi:
-            target_limit2 = round(oom.container.memory_limit_mi * settings.MEM_TARGET_REQUEST)
+            target_limit2 = math.ceil(oom.container.memory_limit_mi * settings.MEM_TARGET_REQUEST)
             if target_limit2 > target_limit:
                 target_limit = target_limit2
                 priority = 1000000
                 reason = f'OOM @ {oom.happened_at}, {oom.container.memory_limit_mi} Mi limit'
 
-    lower_bound = round(target_limit * settings.MEM_BOUNDS[0])
-    upper_bound = round(target_limit * settings.MEM_BOUNDS[1])
+    lower_bound = math.ceil(target_limit * settings.MEM_BOUNDS[0])
+    upper_bound = math.ceil(target_limit * settings.MEM_BOUNDS[1])
 
     if stat.memory_limit_mi:
         if stat.memory_limit_mi < lower_bound:

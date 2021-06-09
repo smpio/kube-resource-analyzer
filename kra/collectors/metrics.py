@@ -1,3 +1,4 @@
+import math
 import time
 import logging
 from datetime import timedelta
@@ -126,6 +127,6 @@ class CollectorThread(SupervisedThread):
         # See
         # https://stackoverflow.com/questions/65428558/what-is-the-difference-between-container-memory-working-set-bytes-and-contain
         # https://stackoverflow.com/questions/66832316/what-is-the-relation-between-container-memory-working-set-bytes-metric-and-oom
-        usage.memory_mi = container_metrics['container_memory_working_set_bytes'] / MEBIBYTE + 1
+        usage.memory_mi = math.ceil(container_metrics['container_memory_working_set_bytes'] / MEBIBYTE)
         usage.cpu_m_seconds = container_metrics['container_cpu_usage_seconds'] * 1000
         usage.save()
