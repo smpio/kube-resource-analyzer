@@ -48,6 +48,7 @@ def _suggest_memory(stat, oom_events):
     new_limit = None
     priority = 0
     reason = ''
+    oom = None
 
     target_limit = math.ceil(stat.max_memory_mi * settings.MEM_TARGET_REQUEST)
 
@@ -56,7 +57,7 @@ def _suggest_memory(stat, oom_events):
             target_limit2 = math.ceil(oom.container.memory_limit_mi * settings.MEM_TARGET_REQUEST)
             if target_limit2 > target_limit:
                 target_limit = target_limit2
-                priority = 1000000
+                priority = settings.OOM_PRIORITY
                 reason = f'OOM @ {oom.happened_at}, {oom.container.memory_limit_mi} Mi limit'
 
     target_limit = max(target_limit, settings.MEM_MIN)
@@ -77,6 +78,8 @@ def _suggest_memory(stat, oom_events):
     else:
         new_limit = target_limit
         priority = target_limit
+        if oom:
+            priority += settings.OOM_PRIORITY
 
     if new_limit is None:
         priority = 0
