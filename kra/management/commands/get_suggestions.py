@@ -23,18 +23,18 @@ class Command(BaseCommand):
             print(f'{workload.kind.name} {workload.namespace}/{workload.name}'
                   f' (container {stat.container_name})')
 
-            if sug.new_memory_limit_mi:
+            if sug.new_memory_limit_mi is not None:
                 print(f'  set memory limit to {sug.new_memory_limit_mi} Mi', end='')
-                if stat.memory_limit_mi:
+                if stat.memory_limit_mi is not None:
                     print(f' (current: {stat.memory_limit_mi} Mi)')
                 else:
                     print(' (current: not set)')
                 if sug.memory_reason:
                     print('    ' + sug.memory_reason)
 
-            if sug.new_cpu_request_m:
+            if sug.new_cpu_request_m is not None:
                 print(f'  set CPU request to {sug.new_cpu_request_m}m', end='')
-                if stat.cpu_request_m:
+                if stat.cpu_request_m is not None:
                     print(f' (current: {stat.cpu_request_m}m)')
                 else:
                     print(' (current: not set)')

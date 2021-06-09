@@ -66,7 +66,7 @@ def suggest_memory(stat, oom_events):
     lower_bound = max(lower_bound, settings.MEM_MIN)
     upper_bound = math.ceil(target_limit * settings.MEM_BOUNDS[1])
 
-    if stat.memory_limit_mi:
+    if stat.memory_limit_mi is not None:
         if stat.memory_limit_mi < lower_bound:
             new_limit = target_limit
             priority += target_limit - stat.memory_limit_mi
@@ -96,7 +96,7 @@ def suggest_cpu(stat):
     lower_bound = round(target_limit * settings.CPU_BOUNDS[0])
     upper_bound = round(target_limit * settings.CPU_BOUNDS[1])
 
-    if stat.cpu_request_m:
+    if stat.cpu_request_m is not None:
         if stat.cpu_request_m < lower_bound:
             new_request = target_limit
             priority = target_limit - stat.cpu_request_m
