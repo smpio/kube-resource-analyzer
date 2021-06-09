@@ -1,8 +1,8 @@
 from rest_framework import viewsets
 
+from kra import tasks
 from kra import models
 from kra import serializers
-from kra.tasks.apply_adjustment import apply_adjustment
 
 
 class WorkloadViewSet(viewsets.ModelViewSet):
@@ -66,11 +66,11 @@ class AdjustmentViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         adj = serializer.save()
-        apply_adjustment.delay(adj.id)
+        tasks.apply_adjustment.delay(adj.id)
 
     def perform_update(self, serializer):
         adj = serializer.save()
-        apply_adjustment.delay(adj.id)
+        tasks.apply_adjustment.delay(adj.id)
 
 
 class SummaryViewSet(viewsets.ModelViewSet):
