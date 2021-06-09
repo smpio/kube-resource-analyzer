@@ -63,7 +63,7 @@ def _apply_adjustment(adj):
 def _get_containers(obj, kind):
     path = kube.containers_paths[kind]
     for part in path:
-        obj = getattr(obj, part)
+        obj = getattr(obj, _camel_case_to_snake_case(part))
     return obj
 
 
@@ -81,3 +81,12 @@ def _get_json_patch_op(idx, kind, container_adjustment):
             }
         }
     }
+
+
+def _camel_case_to_snake_case(s: str):
+    def conv(c: str):
+        if c.isupper():
+            return '_' + c.lower()
+        return c
+
+    return ''.join(conv(c) for c in s)
