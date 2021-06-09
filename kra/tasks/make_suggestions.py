@@ -76,7 +76,7 @@ def suggest_memory(stat, oom_events):
             reason = f'memory limit {stat.memory_limit_mi} Mi > upper bound {upper_bound} Mi'
     else:
         new_limit = target_limit
-        priority = 1
+        priority = target_limit
 
     if new_limit is None:
         priority = 0
@@ -105,6 +105,6 @@ def suggest_cpu(stat):
             reason = f'cpu request {stat.cpu_request_m}m > upper bound {lower_bound}m'
     else:
         new_request = target_limit
-        priority = 1
+        priority = target_limit
 
     return new_request, priority, reason
