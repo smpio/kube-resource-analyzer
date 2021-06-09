@@ -5,6 +5,7 @@ import logging
 import kubernetes
 import kubernetes.client.rest
 from kubernetes.utils import parse_quantity
+from django.db import IntegrityError
 from django.utils import timezone
 
 from utils.threading import SupervisedThread, SupervisedThreadGroup
@@ -158,13 +159,19 @@ def update_containers(pod, mypod):
             log.info('No runtime_id for container %s in pod %s/%s', name, pod.metadata.namespace, pod.metadata.name)
             continue
         if not data.get('started_at'):
-            log.warning('No started_at for container %s in pod %s/%s', name, pod.metadata.namespace, pod.metadata.name)
-            continue
+            log.info('No started_at for container %s in pod %s/%s', name, pod.metadata.namespace, pod.metadata.name)
 
-        c, _ = models.Container.objects.update_or_create(pod=mypod, runtime_id=runtime_id, defaults=data)
-        oom = oom_events.pop(runtime_id, None)
-        if oom:
-            save_oom(c, oom)
+        try:
+            c, _ = models.Container.objects.update_or_create(pod=mypod, runtime_id=runtime_id, defaults=data)
+        except IntegrityError as err:
+            if data.get('started_at'):
+                raise err
+            else:
+                pass
+        else:
+            oom = oom_events.pop(runtime_id, None)
+            if oom:
+                save_oom(c, oom)
 
     for runtime_id, oom in oom_events.items():
         try:
