@@ -61,7 +61,9 @@ def suggest_memory(stat, oom_events):
                 priority = 1000000
                 reason = f'OOM @ {oom.happened_at}, {oom.container.memory_limit_mi} Mi limit'
 
+    target_limit = max(target_limit, settings.MEM_MIN)
     lower_bound = math.ceil(target_limit * settings.MEM_BOUNDS[0])
+    lower_bound = max(lower_bound, settings.MEM_MIN)
     upper_bound = math.ceil(target_limit * settings.MEM_BOUNDS[1])
 
     if stat.memory_limit_mi:
