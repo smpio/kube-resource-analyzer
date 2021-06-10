@@ -144,10 +144,11 @@ def get_container(ps_record):
         log.warning('Unknown cgroup format "%s"', ps_record.cgroup)
         return None
 
-    container = models.Container.objects.get(runtime_id=container_runtime_id, pod__uid=pod_uid)
-    if container is None:
+    try:
+        return models.Container.objects.get(runtime_id=container_runtime_id, pod__uid=pod_uid)
+    except models.Container.DoesNotExists:
         log.warning('No container %s in pod %s', container_runtime_id, pod_uid)
-    return container
+        return None
 
 
 if __name__ == '__main__':
