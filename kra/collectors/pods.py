@@ -137,7 +137,7 @@ def update_containers(pod, mypod):
 
         mycontainers[container.name] = data
 
-    for container_status in pod.status.container_statuses:
+    for container_status in pod.status.container_statuses or []:
         runtime_id = None
         started_at = None
 
