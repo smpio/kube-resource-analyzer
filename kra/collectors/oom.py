@@ -99,17 +99,16 @@ class HandlerThread(SupervisedThread):
         if victim_ps_record is not None:
             oom.victim_pid = victim_ps_record.nspid
 
-        ps_record = target_ps_record or victim_ps_record
-        if ps_record is None:
+        if target_ps_record is None and victim_ps_record is None:
             raise Exception(f'No ps records for node {node} and PIDs {target_pid}, {victim_pid}')
 
-        pod_uid, container_runtime_id = parse_cgroup(ps_record.cgroup)
-        if pod_uid is None or container_runtime_id is None:
-            raise Exception(f'Unknown cgroup format "{ps_record.cgroup}"')
+        if target_ps_record is not None:
+            oom.container = get_container(target_ps_record)
+        if oom.container is None and victim_ps_record != target_ps_record:
+            oom.container = get_container(victim_ps_record)
 
-        oom.container = models.Container.objects.get(runtime_id=container_runtime_id, pod__uid=pod_uid)
-        if oom.container is None:
-            raise Exception(f'No container {container_runtime_id} in pod {pod_uid}')
+        if oom.container is not None:
+            raise Exception(f'No matching container found for the OOM event')
 
         oom.save()
         log.info(f'OOM in {oom.container.pod.namespace}/{oom.container.pod.name}, container: {oom.container.name}, '
@@ -121,6 +120,18 @@ def get_ps_record(event, pid):
         return None
     node = event.involved_object.name
     return models.PSRecord.objects.filter(hostname=node, pid=pid, ts__lte=event.last_timestamp).order_by('-ts').first()
+
+
+def get_container(ps_record):
+    pod_uid, container_runtime_id = parse_cgroup(ps_record.cgroup)
+    if pod_uid is None or container_runtime_id is None:
+        log.warning('Unknown cgroup format "%s"', ps_record.cgroup)
+        return None
+
+    container = models.Container.objects.get(runtime_id=container_runtime_id, pod__uid=pod_uid)
+    if container is None:
+        log.warning('No container %s in pod %s', container_runtime_id, pod_uid)
+    return container
 
 
 if __name__ == '__main__':
