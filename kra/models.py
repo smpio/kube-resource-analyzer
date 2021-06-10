@@ -154,6 +154,8 @@ class InstanceSummary(models.Model):
     """
     aggregated = models.ForeignKey('Summary', on_delete=models.CASCADE)
 
+    # TODO: add since, till
+
     max_memory_mi = models.PositiveIntegerField()
     avg_memory_mi = models.PositiveIntegerField()
     stddev_memory_mi = models.PositiveIntegerField()

@@ -53,7 +53,8 @@ def make_summaries():
 
 
 def _fill_summary(summary, containers):
-    last_container = containers[-1]
+    # containers arg does not contain containers without measurements
+    last_container = models.Container.objects.filter(pod__workload=summary.workload).order_by('-started_at').first()
 
     summary.memory_limit_mi = last_container.memory_limit_mi
     summary.cpu_request_m = last_container.cpu_request_m
