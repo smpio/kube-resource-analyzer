@@ -119,13 +119,14 @@ class HandlerThread(SupervisedThread):
         if target_ps_record is None and victim_ps_record is None:
             raise Exception(f'No ps records for node {node} and PIDs {target_pid}, {victim_pid}')
 
-        oom.container = get_container(target_ps_record)
-        if oom.container is None and victim_ps_record != target_ps_record:
-            oom.container = get_container(victim_ps_record)
+        container = get_container(target_ps_record)
+        if container is None and victim_ps_record != target_ps_record:
+            container = get_container(victim_ps_record)
 
-        if oom.container is None:
+        if container is None:
             raise Exception(f'No matching container found for the OOM event')
 
+        oom.container = container
         oom.save()
         log.info(f'OOM in {oom.container.pod.namespace}/{oom.container.pod.name}, container: {oom.container.name}, '
                  f'target: {oom.target_pid} ({oom.target_comm}), victim: {oom.victim_pid} ({oom.victim_comm})')
