@@ -65,12 +65,13 @@ class HandlerThread(SupervisedThread):
             event = self.queue.get()
             fix_long_connections()
             try:
+                log.info('%s', event_str(event))
                 if event.reason == 'OOMKilling':
                     self.handle_oom(event)
                 elif event.reason == 'SystemOOM':
                     self.handle_sys_oom(event)
             except Exception:
-                log.exception('Failed to handle event on node %s', event.involved_object.name)
+                log.exception('Failed to handle %s', event_str(event))
 
     def handle_sys_oom(self, event):
         match = sys_victim_message_re.search(event.message)
@@ -123,7 +124,7 @@ class HandlerThread(SupervisedThread):
         if oom.container is None and victim_ps_record != target_ps_record:
             oom.container = get_container(victim_ps_record)
 
-        if oom.container is not None:
+        if oom.container is None:
             raise Exception(f'No matching container found for the OOM event')
 
         oom.save()
@@ -149,6 +150,10 @@ def get_container(ps_record):
     except models.Container.DoesNotExists:
         log.warning('No container %s in pod %s', container_runtime_id, pod_uid)
         return None
+
+
+def event_str(event):
+    return f'{event.reason} on {event.involved_object.name}: {event.message}'
 
 
 if __name__ == '__main__':
