@@ -74,14 +74,19 @@ class HandlerThread(SupervisedThread):
         oom = models.OOMEvent(happened_at=event.last_timestamp)
 
         match = victim_message_re.search(event.message)
-        if not match:
-            raise Exception(f'No victim PID in message "{event.message}"')
-        victim_pid, oom.victim_comm = int(match.group(1)), match.group(2)
+        if match:
+            victim_pid, oom.victim_comm = int(match.group(1)), match.group(2)
+        else:
+            victim_pid = None
 
         match = target_message_re.search(event.message)
-        if not match:
-            raise Exception(f'No target PID in message "{event.message}"')
-        target_pid, oom.target_comm = int(match.group(1)), match.group(2)
+        if match:
+            target_pid, oom.target_comm = int(match.group(1)), match.group(2)
+        else:
+            target_pid = None
+
+        if not victim_pid and not target_pid:
+            raise Exception(f'Nor victim nor target PID in message "{event.message}"')
 
         target_ps_record = get_ps_record(event, target_pid)
         if target_ps_record is not None:
@@ -112,6 +117,8 @@ class HandlerThread(SupervisedThread):
 
 
 def get_ps_record(event, pid):
+    if not pid:
+        return None
     node = event.involved_object.name
     return models.PSRecord.objects.filter(hostname=node, pid=pid, ts__lte=event.last_timestamp).order_by('-ts').first()
 
