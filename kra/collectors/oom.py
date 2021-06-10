@@ -119,8 +119,7 @@ class HandlerThread(SupervisedThread):
         if target_ps_record is None and victim_ps_record is None:
             raise Exception(f'No ps records for node {node} and PIDs {target_pid}, {victim_pid}')
 
-        if target_ps_record is not None:
-            oom.container = get_container(target_ps_record)
+        oom.container = get_container(target_ps_record)
         if oom.container is None and victim_ps_record != target_ps_record:
             oom.container = get_container(victim_ps_record)
 
@@ -140,6 +139,9 @@ def get_ps_record(event, pid):
 
 
 def get_container(ps_record):
+    if ps_record is None:
+        return None
+
     pod_uid, container_runtime_id = parse_cgroup(ps_record.cgroup)
     if pod_uid is None or container_runtime_id is None:
         log.warning('Unknown cgroup format "%s"', ps_record.cgroup)
