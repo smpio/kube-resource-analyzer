@@ -18,6 +18,7 @@ log = logging.getLogger(__name__)
 MEBIBYTE = 1024 * 1024
 target_message_re = re.compile(r'Kill\s+process\s+(\d+)\s+\((.*)\)')
 victim_message_re = re.compile(r'Killed\s+process\s+(\d+)\s+\((.*)\)')
+sys_victim_message_re = re.compile(r'victim\s+process:\s*(.*),\s+pid:\s*(\d+)')
 
 
 def main():
@@ -47,7 +48,7 @@ class WatcherThread(SupervisedThread):
         for event_type, event in watcher:
             if event_type != WatchEventType.ADDED:
                 continue
-            if event.reason != 'OOMKilling':
+            if event.reason not in ['OOMKilling', 'SystemOOM']:
                 continue
             if event.involved_object.kind != 'Node':
                 continue
@@ -62,28 +63,43 @@ class HandlerThread(SupervisedThread):
     def run_supervised(self):
         while True:
             event = self.queue.get()
+            fix_long_connections()
             try:
-                self.handle(event)
+                if event.reason == 'OOMKilling':
+                    self.handle_oom(event)
+                elif event.reason == 'SystemOOM':
+                    self.handle_sys_oom(event)
             except Exception:
                 log.exception('Failed to handle event on node %s', event.involved_object.name)
 
-    def handle(self, event):
-        fix_long_connections()
+    def handle_sys_oom(self, event):
+        match = sys_victim_message_re.search(event.message)
+        if match:
+            victim_pid, victim_comm = int(match.group(2)), match.group(1)
+        else:
+            victim_pid, victim_comm = None, None
+        return self.handle(event, victim_pid, victim_comm, None, None)
 
-        node = event.involved_object.name
-        oom = models.OOMEvent(happened_at=event.last_timestamp)
-
+    def handle_oom(self, event):
         match = victim_message_re.search(event.message)
         if match:
-            victim_pid, oom.victim_comm = int(match.group(1)), match.group(2)
+            victim_pid, victim_comm = int(match.group(1)), match.group(2)
         else:
-            victim_pid = None
-
+            victim_pid, victim_comm = None, None
         match = target_message_re.search(event.message)
         if match:
-            target_pid, oom.target_comm = int(match.group(1)), match.group(2)
+            target_pid, target_comm = int(match.group(1)), match.group(2)
         else:
-            target_pid = None
+            target_pid, target_comm = None, None
+        return self.handle(event, victim_pid, victim_comm, target_pid, target_comm)
+
+    def handle(self, event, victim_pid, victim_comm, target_pid, target_comm):
+        node = event.involved_object.name
+        oom = models.OOMEvent(
+            happened_at=event.last_timestamp,
+            victim_comm=victim_comm,
+            target_comm=target_comm,
+        )
 
         if not victim_pid and not target_pid:
             raise Exception(f'Nor victim nor target PID in message "{event.message}"')
