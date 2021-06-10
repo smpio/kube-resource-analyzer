@@ -68,12 +68,12 @@ def _suggest_memory(stat, oom_events):
     if stat.memory_limit_mi is not None:
         if stat.memory_limit_mi < lower_bound:
             new_limit = target_limit
-            priority += target_limit - stat.memory_limit_mi
+            priority = target_limit - stat.memory_limit_mi + priority
             if not reason:
                 reason = f'memory limit {stat.memory_limit_mi} Mi < lower bound {lower_bound} Mi'
         elif stat.memory_limit_mi > upper_bound:
             new_limit = target_limit
-            priority += stat.memory_limit_mi - target_limit
+            priority = stat.memory_limit_mi - target_limit
             reason = f'memory limit {stat.memory_limit_mi} Mi > upper bound {upper_bound} Mi'
     else:
         new_limit = target_limit
