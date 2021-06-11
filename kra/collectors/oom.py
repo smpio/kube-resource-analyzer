@@ -150,7 +150,7 @@ def get_container(ps_record):
 
     try:
         return models.Container.objects.get(runtime_id=container_runtime_id, pod__uid=pod_uid)
-    except models.Container.DoesNotExists:
+    except models.Container.DoesNotExist:
         log.warning('No container %s in pod %s', container_runtime_id, pod_uid)
         return None
 

@@ -176,7 +176,7 @@ def update_containers(pod, mypod):
     for runtime_id, oom in oom_events.items():
         try:
             c = models.Container.objects.get(pod=mypod, runtime_id=runtime_id)
-        except models.Container.DoesNotExists:
+        except models.Container.DoesNotExist:
             pass
         else:
             save_oom(c, oom)
