@@ -48,7 +48,7 @@ class WatcherThread(SupervisedThread):
         for event_type, event in watcher:
             if event_type != WatchEventType.ADDED:
                 continue
-            if event.reason not in ['OOMKilling', 'SystemOOM']:
+            if event.reason != 'NodeOOM':
                 continue
             if event.involved_object.kind != 'Node':
                 continue
@@ -65,98 +65,43 @@ class HandlerThread(SupervisedThread):
             event = self.queue.get()
             fix_long_connections()
             try:
-                log.info('%s', event_str(event))
-                if event.reason == 'OOMKilling':
-                    self.handle_oom(event)
-                elif event.reason == 'SystemOOM':
-                    self.handle_sys_oom(event)
+                log.info('Event: %s', event.metadata.name)
+                self.handle(event)
             except Exception:
-                log.exception('Failed to handle %s', event_str(event))
+                log.exception('Failed to handle %s', event.metadata.name)
 
-    def handle_sys_oom(self, event):
-        match = sys_victim_message_re.search(event.message)
-        if match:
-            victim_pid, victim_comm = int(match.group(2)), match.group(1)
-        else:
-            victim_pid, victim_comm = None, None
-        return self.handle(event, victim_pid, victim_comm, None, None)
+    def handle(self, event):
+        cgroup, comm = parse_event_message(event.message)
+        if not cgroup:
+            raise Exception(f'No cgroup in message "{event.message}"')
+        container = get_container(cgroup)
 
-    def handle_oom(self, event):
-        match = victim_message_re.search(event.message)
-        if match:
-            victim_pid, victim_comm = int(match.group(1)), match.group(2)
-        else:
-            victim_pid, victim_comm = None, None
-        match = target_message_re.search(event.message)
-        if match:
-            target_pid, target_comm = int(match.group(1)), match.group(2)
-        else:
-            target_pid, target_comm = None, None
-        return self.handle(event, victim_pid, victim_comm, target_pid, target_comm)
-
-    def handle(self, event, victim_pid, victim_comm, target_pid, target_comm):
-        node = event.involved_object.name
         oom = models.OOMEvent(
             happened_at=event.last_timestamp,
-            victim_comm=victim_comm,
-            target_comm=target_comm,
+            container=container,
+            victim_comm=(comm or ''),
         )
-
-        if not victim_pid and not target_pid:
-            raise Exception(f'Nor victim nor target PID in message "{event.message}"')
-
-        target_ps_record = get_ps_record(event, target_pid)
-        if target_ps_record is not None:
-            oom.target_pid = target_ps_record.nspid
-
-        if victim_pid == target_pid:
-            victim_ps_record = target_ps_record
-        else:
-            victim_ps_record = get_ps_record(event, victim_pid)
-        if victim_ps_record is not None:
-            oom.victim_pid = victim_ps_record.nspid
-
-        if target_ps_record is None and victim_ps_record is None:
-            raise Exception(f'No ps records for node {node} and PIDs {target_pid}, {victim_pid}')
-
-        container = get_container(target_ps_record)
-        if container is None and victim_ps_record != target_ps_record:
-            container = get_container(victim_ps_record)
-
-        if container is None:
-            raise Exception(f'No matching container found for the OOM event')
-
-        oom.container = container
         oom.save()
-        log.info(f'OOM in {oom.container.pod.namespace}/{oom.container.pod.name}, container: {oom.container.name}, '
-                 f'target: {oom.target_pid} ({oom.target_comm}), victim: {oom.victim_pid} ({oom.victim_comm})')
+        log.info(f'OOM: {container.pod.namespace}/{container.pod.name}, container: {container.name}, comm: {comm})')
 
 
-def get_ps_record(event, pid):
-    if not pid:
-        return None
-    node = event.involved_object.name
-    return models.PSRecord.objects.filter(hostname=node, pid=pid, ts__lte=event.last_timestamp).order_by('-ts').first()
-
-
-def get_container(ps_record):
-    if ps_record is None:
-        return None
-
-    pod_uid, container_runtime_id = parse_cgroup(ps_record.cgroup)
+def get_container(cgroup):
+    pod_uid, container_runtime_id = parse_cgroup(cgroup)
     if pod_uid is None or container_runtime_id is None:
-        log.warning('Unknown cgroup format "%s"', ps_record.cgroup)
-        return None
-
-    try:
-        return models.Container.objects.get(runtime_id=container_runtime_id, pod__uid=pod_uid)
-    except models.Container.DoesNotExist:
-        log.warning('No container %s in pod %s', container_runtime_id, pod_uid)
-        return None
+        raise Exception(f'Unknown cgroup format "{cgroup}"')
+    return models.Container.objects.get(runtime_id=container_runtime_id, pod__uid=pod_uid)
 
 
-def event_str(event):
-    return f'{event.reason} on {event.involved_object.name}: {event.message}'
+def parse_event_message(message):
+    cgroup = None
+    comm = None
+    for line in message.split('\n'):
+        key, value = line.split(':', maxsplit=1)
+        if key == 'taskcg':
+            cgroup = value
+        elif key == 'proc':
+            comm = value
+    return cgroup, comm
 
 
 if __name__ == '__main__':

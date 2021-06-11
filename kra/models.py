@@ -188,17 +188,3 @@ class OperationResult(models.Model):
 
     def __str__(self):
         return str(self.data or 'OK')
-
-
-class PSRecord(models.Model):
-    """External database model"""
-
-    ts = models.DateTimeField(primary_key=True)
-    hostname = models.TextField()
-    pid = models.BigIntegerField()
-    cgroup = models.TextField()
-    nspid = models.BigIntegerField()
-
-    class Meta:
-        db_table = 'records'
-        managed = False
