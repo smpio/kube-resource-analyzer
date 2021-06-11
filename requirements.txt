@@ -14,3 +14,4 @@ redlock
 raven
 graypy
 certifi
+requests

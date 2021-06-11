@@ -10,7 +10,7 @@ if env('DEV_ENV'):
 
 env.scheme['PS_DATABASE_URL'] = (str, None)
 env.scheme['MAX_RETENTION_DAYS'] = (int, 30)
-
+env.scheme['DISCORD_WEBHOOK_URL'] = (str, None)
 
 if env('DEV_ENV'):
     env.scheme['KUBE_API_URL'] = (str, 'http://127.0.0.1:8001')
@@ -26,6 +26,7 @@ KUBE_IN_CLUSTER = env('KUBE_IN_CLUSTER')
 REST_FRAMEWORK['DEFAULT_PAGINATION_CLASS'] = None
 
 MAX_RETENTION = datetime.timedelta(days=env('MAX_RETENTION_DAYS'))
+DISCORD_WEBHOOK_URL = env('DISCORD_WEBHOOK_URL')
 
 MEM_TARGET_REQUEST = 1.1
 MEM_BOUNDS = [0.95, 1.1]
