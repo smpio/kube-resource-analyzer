@@ -1,6 +1,7 @@
 import re
 import queue
 import logging
+import threading
 
 import kubernetes
 import kubernetes.client.rest
@@ -19,6 +20,7 @@ MEBIBYTE = 1024 * 1024
 target_message_re = re.compile(r'Kill\s+process\s+(\d+)\s+\((.*)\)')
 victim_message_re = re.compile(r'Killed\s+process\s+(\d+)\s+\((.*)\)')
 sys_victim_message_re = re.compile(r'victim\s+process:\s*(.*),\s+pid:\s*(\d+)')
+retry_delay = 30
 
 
 def main():
@@ -71,17 +73,26 @@ class HandlerThread(SupervisedThread):
                 log.exception('Failed to handle %s', event.metadata.name)
 
     def handle(self, event):
+        try:
+            self._handle(event)
+        except models.Container.DoesNotExist as err:
+            if getattr(event, '_retry', None):
+                raise err
+            log.info('Container not found, will retry in %s seconds', retry_delay)
+            event._retry = True
+            threading.Timer(retry_delay, lambda: self.queue.put(event)).start()
+
+    def _handle(self, event):
         cgroup, comm = parse_event_message(event.message)
         if not cgroup:
             raise Exception(f'No cgroup in message "{event.message}"')
         container = get_container(cgroup)
 
-        oom = models.OOMEvent(
+        models.OOMEvent.objects.create(
             happened_at=event.last_timestamp,
             container=container,
             victim_comm=(comm or ''),
         )
-        oom.save()
         log.info(f'OOM: {container.pod.namespace}/{container.pod.name}, container: {container.name}, comm: {comm})')
 
 
