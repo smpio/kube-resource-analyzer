@@ -92,7 +92,7 @@ class HandlerThread(SupervisedThread):
             container=container,
             victim_comm=(comm or ''),
         )
-        log.info(f'OOM: {container.pod.namespace}/{container.pod.name}, container: {container.name}, comm: {comm})')
+        log.info(f'OOM: {container.pod.namespace}/{container.pod.name}, container: {container.name}, comm: {comm}')
 
 
 def get_container(cgroup):
