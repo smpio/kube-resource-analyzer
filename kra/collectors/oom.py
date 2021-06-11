@@ -52,8 +52,6 @@ class WatcherThread(SupervisedThread):
                 continue
             if event.reason != 'NodeOOM':
                 continue
-            if event.involved_object.kind != 'Node':
-                continue
             self.queue.put(event)
 
 
@@ -67,7 +65,6 @@ class HandlerThread(SupervisedThread):
             event = self.queue.get()
             fix_long_connections()
             try:
-                log.info('Event: %s', event.metadata.name)
                 self.handle(event)
             except Exception:
                 log.exception('Failed to handle %s', event.metadata.name)
@@ -83,7 +80,9 @@ class HandlerThread(SupervisedThread):
             threading.Timer(retry_delay, lambda: self.queue.put(event)).start()
 
     def _handle(self, event):
+        log.info('Event: %s', event.metadata.name)
         cgroup, comm = parse_event_message(event.message)
+        log.info('node: %s, cgroup: %s, comm: %s', event.involved_object.name, cgroup, comm)
         if not cgroup:
             raise Exception(f'No cgroup in message "{event.message}"')
         container = get_container(cgroup)
@@ -98,6 +97,7 @@ class HandlerThread(SupervisedThread):
 
 def get_container(cgroup):
     pod_uid, container_runtime_id = parse_cgroup(cgroup)
+    log.info('pod_uid: %s, runtime_id: %s', pod_uid, container_runtime_id)
     if pod_uid is None or container_runtime_id is None:
         raise Exception(f'Unknown cgroup format "{cgroup}"')
     return models.Container.objects.get(runtime_id=container_runtime_id, pod__uid=pod_uid)
