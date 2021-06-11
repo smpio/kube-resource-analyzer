@@ -270,9 +270,11 @@ def get_pod_spec_hash(pod):
 
 
 def save_oom(container, oom):
+    log.info('Found container killed by OOM')
     if models.OOMEvent.objects.filter(container=container,
                                       happened_at__gt=oom.happened_at - OOM_MATCH_INTERVAL,
                                       happened_at__lt=oom.happened_at + OOM_MATCH_INTERVAL).exists():
+        log.info('OOM event already exists')
         return
 
     oom.container = container
