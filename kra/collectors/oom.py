@@ -88,7 +88,7 @@ class HandlerThread(SupervisedThread):
         container = get_container(cgroup)
 
         models.OOMEvent.objects.create(
-            happened_at=event.last_timestamp,
+            happened_at=event.metadata.creation_timestamp,  # TODO: use last_timestamp after fixing https://github.com/smpio/kube-oom-monitor/issues/1
             container=container,
             victim_comm=(comm or ''),
         )
