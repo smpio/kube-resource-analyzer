@@ -1,10 +1,16 @@
 import enum
+import logging
+import contextlib
 
 from django.db import models
+from django.db import transaction
 from django.utils import timezone
 from django.core.validators import MinValueValidator
 
 from utils.django.models import EnumField
+
+log = logging.getLogger(__name__)
+OOM_MATCH_INTERVAL = timezone.timedelta(seconds=5)
 
 
 class WorkloadKind(enum.IntEnum):
@@ -71,6 +77,12 @@ class Container(models.Model):
     def __str__(self):
         return f'{self.pod} {self.name}'
 
+    @contextlib.contextmanager
+    def lock(self):
+        with transaction.atomic():
+            Container.objects.select_for_update(no_key=True).get(id=self.id)
+            yield
+
 
 class ResourceUsage(models.Model):
     container = models.ForeignKey('Container', on_delete=models.CASCADE)
@@ -103,6 +115,15 @@ class OOMEvent(models.Model):
 
     def __str__(self):
         return str(self.happened_at)
+
+    def save_if_not_exist(self):
+        with self.container.lock():
+            if OOMEvent.objects.filter(container_id=self.container_id,
+                                       happened_at__gt=self.happened_at - OOM_MATCH_INTERVAL,
+                                       happened_at__lt=self.happened_at + OOM_MATCH_INTERVAL).exists():
+                log.info('OOMEvent already exists')
+                return
+            self.save()
 
 
 class Adjustment(models.Model):

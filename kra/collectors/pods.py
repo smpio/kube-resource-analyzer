@@ -14,13 +14,13 @@ from utils.signal import install_shutdown_signal_handlers
 from utils.django.db import retry_on_connection_close
 
 from kra import kube
+from kra import tasks
 from kra import models
 
 log = logging.getLogger(__name__)
 container_runtime_id_re = re.compile(r'^\w+://(.+)$')
 
 MEBIBYTE = 1024 * 1024
-OOM_MATCH_INTERVAL = timezone.timedelta(seconds=5)
 
 
 def main():
@@ -123,7 +123,6 @@ def update_pod(pod):
 
 def update_containers(pod, mypod):
     mycontainers = {}
-    oom_events = {}
 
     for container in pod.spec.containers:
         data = {
@@ -144,10 +143,16 @@ def update_containers(pod, mypod):
         if container_status.state.running:
             started_at = container_status.state.running.started_at
         elif container_status.state.terminated:
-            runtime_id = parse_container_runtime_id(container_status.state.terminated.container_id)
-            if runtime_id and container_status.state.terminated.reason == 'OOMKilled':
-                oom_events[runtime_id] = models.OOMEvent(happened_at=container_status.state.terminated.finished_at)
             started_at = container_status.state.terminated.started_at
+            runtime_id = parse_container_runtime_id(container_status.state.terminated.container_id)
+            if container_status.state.terminated.reason == 'OOMKilled':
+                log.info('Found container killed by OOM: %s', container_status.name)
+                if runtime_id:
+                    finished_at = container_status.state.terminated.finished_at
+                    tasks.save_non_collected_oom.apply_async(args=(mypod.uid, runtime_id, finished_at),
+                                                             countdown=30)
+                else:
+                    log.info('But runtime_id is not set')
 
         runtime_id = parse_container_runtime_id(container_status.container_id) or runtime_id
         mycontainers[container_status.name]['runtime_id'] = runtime_id
@@ -166,20 +171,6 @@ def update_containers(pod, mypod):
         except IntegrityError as err:
             if data.get('started_at'):
                 raise err
-            else:
-                pass
-        else:
-            oom = oom_events.pop(runtime_id, None)
-            if oom:
-                save_oom(c, oom)
-
-    for runtime_id, oom in oom_events.items():
-        try:
-            c = models.Container.objects.get(pod=mypod, runtime_id=runtime_id)
-        except models.Container.DoesNotExist:
-            pass
-        else:
-            save_oom(c, oom)
 
 
 def get_workload_from_pod(pod):
@@ -267,18 +258,6 @@ def parse_container_runtime_id(container_id):
 
 def get_pod_spec_hash(pod):
     return pod.metadata.labels.get('controller-revision-hash') or pod.metadata.labels.get('pod-template-hash') or ''
-
-
-def save_oom(container, oom):
-    log.info('Found container killed by OOM')
-    if models.OOMEvent.objects.filter(container=container,
-                                      happened_at__gt=oom.happened_at - OOM_MATCH_INTERVAL,
-                                      happened_at__lt=oom.happened_at + OOM_MATCH_INTERVAL).exists():
-        log.info('OOM event already exists')
-        return
-
-    oom.container = container
-    oom.save()
 
 
 if __name__ == '__main__':
