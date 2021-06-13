@@ -150,6 +150,7 @@ def update_containers(pod, mypod):
                 if runtime_id:
                     finished_at = container_status.state.terminated.finished_at
                     tasks.save_non_collected_oom.apply_async(args=(mypod.uid, runtime_id, finished_at),
+                                                             serializer='pickle',
                                                              countdown=30)
                 else:
                     log.info('But runtime_id is not set')

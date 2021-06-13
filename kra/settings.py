@@ -3,6 +3,8 @@
 import datetime
 from utils.django.settings import *
 
+CELERY_ACCEPT_CONTENT = {'json', 'pickle'}
+
 if env('DEV_ENV'):
     INSTALLED_APPS += ['corsheaders']
     MIDDLEWARE = ['corsheaders.middleware.CorsMiddleware'] + MIDDLEWARE
