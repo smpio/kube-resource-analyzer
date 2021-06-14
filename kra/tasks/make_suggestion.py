@@ -10,14 +10,22 @@ log = logging.getLogger(__name__)
 
 
 @task
-def make_suggestion(workload_id, container_name):
-    summary = models.Summary.objects\
-        .select_related('suggestion')\
-        .get(workload_id=workload_id, container_name=container_name)
+def make_suggestion(workload_id, container_name, make_missing_summary=True):
+    try:
+        summary = models.Summary.objects\
+            .select_related('suggestion')\
+            .get(workload_id=workload_id, container_name=container_name)
+    except models.Summary.DoesNotExist as err:
+        if not make_missing_summary:
+            raise err
+        log.info('No summary for workload %s and container "%s", making fast', workload_id, container_name)
+        summary = _make_fast_summary(workload_id, container_name)
+
     oom_events = models.OOMEvent.objects\
         .filter(container__pod__workload_id=workload_id, container__name=container_name)\
         .prefetch_related('container')
-    sug = _make_suggestion(summary,oom_events)
+
+    sug = _make_suggestion(summary, oom_events)
     if sug:
         sug.save()
 
@@ -111,3 +119,26 @@ def _suggest_cpu(stat):
         priority = target_limit
 
     return new_request, priority, reason
+
+
+def _make_fast_summary(workload_id, container_name):
+    c = models.Container.objects\
+        .filter(pod__workload_id=workload_id, name=container_name)\
+        .order_by('-started_at')\
+        .first()
+
+    if not c:
+        raise Exception('No container found')
+
+    return models.Summary.objects.create(
+        workload_id=workload_id,
+        container_name=container_name,
+        max_memory_mi=0,
+        avg_memory_mi=0,
+        stddev_memory_mi=0,
+        memory_limit_mi=c.memory_limit_mi,
+        max_cpu_m=0,
+        avg_cpu_m=0,
+        stddev_cpu_m=0,
+        cpu_request_m=c.cpu_request_m,
+    )
