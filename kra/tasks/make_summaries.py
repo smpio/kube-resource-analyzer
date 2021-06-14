@@ -34,7 +34,7 @@ def make_summaries():
     log.info('Collecting results')
 
     pods_by_workload_id = defaultdict(list)
-    for pod in models.Pod.objects.order_by('started_at'):
+    for pod in models.Pod.objects.all():
         pods_by_workload_id[pod.workload_id].append(pod)
 
     models.Summary.objects.all().delete()
