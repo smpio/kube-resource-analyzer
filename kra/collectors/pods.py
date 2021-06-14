@@ -102,6 +102,7 @@ def update_pod(pod):
         'name': pod.metadata.name,
         'spec_hash': get_pod_spec_hash(pod),
         'started_at': pod.status.start_time,
+        'gone_at': None,
     }
 
     try:
