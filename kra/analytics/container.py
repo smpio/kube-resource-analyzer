@@ -1,13 +1,7 @@
 from kra import models
 
 
-def get_containers_summary(container_ids=None):
-    if container_ids is not None:
-        container_ids_str = ','.join(str(cid) for cid in container_ids)
-        container_filter = f'AND id IN ({container_ids_str})'
-    else:
-        container_filter = ''
-
+def get_containers_summary():
     return models.Container.objects.raw(r"""
     SELECT
         *
@@ -106,9 +100,8 @@ def get_containers_summary(container_ids=None):
             ) AS pass2q2
         ) AS pass2 ON TRUE
     ) AS summary ON TRUE
-    WHERE total_seconds IS NOT NULL %(container_filter)s
+    WHERE total_seconds IS NOT NULL
     """ % {
         'container_tblname': models.Container._meta.db_table,
         'ru_tblname': models.ResourceUsage._meta.db_table,
-        'container_filter': container_filter,
     })

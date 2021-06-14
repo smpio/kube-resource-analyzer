@@ -39,12 +39,6 @@ class Workload(models.Model):
     def __str__(self):
         return f'{self.kind.name} {self.namespace}/{self.name}'
 
-    @contextlib.contextmanager
-    def lock(self):
-        with transaction.atomic():
-            Workload.objects.select_for_update(no_key=True).get(id=self.id)
-            yield
-
 
 class Pod(models.Model):
     uid = models.UUIDField(unique=True)

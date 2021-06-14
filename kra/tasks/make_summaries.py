@@ -52,23 +52,6 @@ def make_summaries():
                     save(instance_summary)
 
 
-def make_summary(workload_id):
-    log.info('Making summary for workload %s', workload_id)
-    container_ids = models.Container.objects.filter(pod__workload_id=workload_id).values_list('id', flat=True)
-    containers_by_name = defaultdict(list)
-    for c in get_containers_summary(list(container_ids)):
-        containers_by_name[c.name].append(c)
-
-    models.Summary.objects.filter(workload_id=workload_id).delete()
-
-    with bulk_save() as save:
-        for container_name, containers in containers_by_name.items():
-            summary = models.Summary(workload_id=workload_id, container_name=container_name)
-            save(summary)
-            for instance_summary in _fill_summary(summary, containers):
-                save(instance_summary)
-
-
 def _fill_summary(summary, containers):
     # containers arg does not contain containers without measurements
     last_container = models.Container.objects\

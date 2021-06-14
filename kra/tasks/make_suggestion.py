@@ -5,33 +5,19 @@ from django.conf import settings
 
 from kra import models
 from kra.celery import task
-from .make_summaries import make_summary
 
 log = logging.getLogger(__name__)
 
 
 @task
-def make_suggestion(workload_id, container_name, make_missing_summary=True):
-    with models.Workload.objects.get(id=workload_id).lock():
-        try:
-            summary = models.Summary.objects\
-                .select_related('suggestion')\
-                .get(workload_id=workload_id, container_name=container_name)
-        except models.Summary.DoesNotExist as err:
-            if not make_missing_summary:
-                raise err
-            log.info('No summary for workload %s and container "%s"', workload_id, container_name)
-            make_summary(workload_id)
-            summary = models.Summary.objects\
-                .select_related('suggestion')\
-                .get(workload_id=workload_id, container_name=container_name)
-    log.info('Summary found')
-
+def make_suggestion(workload_id, container_name):
+    summary = models.Summary.objects\
+        .select_related('suggestion')\
+        .get(workload_id=workload_id, container_name=container_name)
     oom_events = models.OOMEvent.objects\
         .filter(container__pod__workload_id=workload_id, container__name=container_name)\
         .prefetch_related('container')
-
-    sug = _make_suggestion(summary, oom_events)
+    sug = _make_suggestion(summary,oom_events)
     if sug:
         sug.save()
 
