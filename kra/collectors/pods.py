@@ -14,7 +14,6 @@ from utils.signal import install_shutdown_signal_handlers
 from utils.django.db import retry_on_connection_close
 
 from kra import kube
-from kra import tasks
 from kra import models
 
 log = logging.getLogger(__name__)
@@ -146,15 +145,6 @@ def update_containers(pod, mypod):
         elif container_status.state.terminated:
             started_at = container_status.state.terminated.started_at
             runtime_id = parse_container_runtime_id(container_status.state.terminated.container_id)
-            if container_status.state.terminated.reason == 'OOMKilled':
-                log.info('Found container killed by OOM: %s', container_status.name)
-                if runtime_id:
-                    finished_at = container_status.state.terminated.finished_at
-                    tasks.save_non_collected_oom.apply_async(args=(mypod.uid, runtime_id, finished_at),
-                                                             serializer='pickle',
-                                                             countdown=30)
-                else:
-                    log.info('But runtime_id is not set')
 
         runtime_id = parse_container_runtime_id(container_status.container_id) or runtime_id
         mycontainers[container_status.name]['runtime_id'] = runtime_id
