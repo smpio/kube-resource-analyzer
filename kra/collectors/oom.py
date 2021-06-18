@@ -4,7 +4,7 @@ import logging
 import threading
 
 import kubernetes
-import kubernetes.client.rest
+import kubernetes.client
 
 from utils.threading import SupervisedThread, SupervisedThreadGroup
 from utils.kubernetes.watch import KubeWatcher, WatchEventType
