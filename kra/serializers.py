@@ -120,7 +120,10 @@ class ContainerSerializer(serializers.ModelSerializer):
     resource_usage_buckets = serializers.SerializerMethodField('get_resource_usage_buckets')
 
     def get_resource_usage_buckets(self, instance):
-        return getattr(instance, 'resource_usage_buckets', [])
+        def _dict2list(b):
+            return [b['ts'], b['memory_mi'], b['cpu_m_seconds']]
+        buckets = getattr(instance, 'resource_usage_buckets', [])
+        return [_dict2list(b) for b in buckets]
 
 
 class PodSerializer(serializers.ModelSerializer):
