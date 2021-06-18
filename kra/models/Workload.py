@@ -51,13 +51,12 @@ class WorkloadQuerySet(models.QuerySet):
             return
 
         workloads = self._result_cache
-        container_ids = list(  # TODO: try to remove list
+        container_ids = \
             itertools.chain.from_iterable(
                 itertools.chain.from_iterable(
                     (c.id for c in pod.container_set.all()) for pod in wl.pod_set.all()
                 ) for wl in workloads
             )
-        )
         qs = ResourceUsage.objects.filter(container_id__in=container_ids)\
             .annotate(
                 ts=models.Func(
