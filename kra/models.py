@@ -1,9 +1,7 @@
 import enum
 import logging
-import contextlib
 
 from django.db import models
-from django.db import transaction
 from django.utils import timezone
 from django.core.validators import MinValueValidator
 
@@ -22,6 +20,12 @@ class WorkloadKind(enum.IntEnum):
     Job = 6
 
 
+class WorkloadManager(models.Manager):
+    def get_queryset(self):
+        from kra.views import MyQuerySet
+        return MyQuerySet(self.model, using=self._db)
+
+
 class Workload(models.Model):
     kind = EnumField(enum_class=WorkloadKind)
     namespace = models.CharField(max_length=255)
@@ -32,6 +36,8 @@ class Workload(models.Model):
     priority = models.FloatField(validators=[MinValueValidator(0)], default=1)
     auto_downgrade = models.BooleanField(default=False)
     min_auto_downgrade_interval_sec = models.PositiveIntegerField(blank=True, null=True)
+
+    objects = WorkloadManager()
 
     class Meta:
         unique_together = ('kind', 'namespace', 'name')

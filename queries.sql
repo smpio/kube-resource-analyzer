@@ -230,3 +230,15 @@ LEFT JOIN LATERAL (
     ) AS pass2 ON TRUE
 ) AS summary ON TRUE
 ;
+
+
+-- ResourceUsage buckets for multiple containers
+SELECT
+    "kra_resourceusage"."container_id",
+    time_bucket('5434 seconds', "kra_resourceusage"."measured_at") AS "ts",
+    MAX("kra_resourceusage"."memory_mi") AS "memory_mi",
+    MAX("kra_resourceusage"."cpu_m_seconds") AS "cpu_m_seconds"
+FROM "kra_resourceusage"
+WHERE "kra_resourceusage"."container_id" IN (281770, 281766, 281780, 281774, 281789, 283592, 283674, 283676, 283686, 283683, 284484, 284500, 284498, 284483, 284494, 290202)
+GROUP BY "kra_resourceusage"."container_id", "ts"
+ORDER BY "kra_resourceusage"."container_id" ASC, "ts" ASC;

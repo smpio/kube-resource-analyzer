@@ -93,6 +93,52 @@ class AdjustmentSerializer(serializers.ModelSerializer):
         return instance
 
 
+class OOMEventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.OOMEvent
+        fields = [
+            'id',
+            'happened_at',
+        ]
+
+
+class ContainerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Container
+        fields = [
+            'id',
+            'name',
+            'runtime_id',
+            'started_at',
+            'memory_limit_mi',
+            'cpu_request_m',
+            'oomevent_set',
+            'resource_usage_buckets',
+        ]
+
+    oomevent_set = OOMEventSerializer(many=True, read_only=True)
+    resource_usage_buckets = serializers.SerializerMethodField('get_resource_usage_buckets')
+
+    def get_resource_usage_buckets(self, instance):
+        return getattr(instance, 'resource_usage_buckets', [])
+
+
+class PodSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Pod
+        fields = [
+            'id',
+            'uid',
+            'name',
+            'spec_hash',
+            'started_at',
+            'gone_at',
+            'container_set',
+        ]
+
+    container_set = ContainerSerializer(many=True, read_only=True)
+
+
 class WorkloadSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Workload
@@ -104,12 +150,14 @@ class WorkloadSerializer(serializers.ModelSerializer):
             'affinity',
             'summary_set',
             'adjustment_set',
+            'pod_set',
             'stats',
         ]
     serializer_choice_field = ChoiceDisplayField
 
     summary_set = NestedSummarySerializer(many=True, read_only=True)
     adjustment_set = AdjustmentSerializer(many=True, read_only=True)
+    pod_set = PodSerializer(many=True, read_only=True)
     stats = serializers.SerializerMethodField('get_stats')
 
     def get_stats(self, workload):
@@ -166,27 +214,9 @@ class WorkloadSerializer(serializers.ModelSerializer):
         return stats
 
 
-class PodSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = models.Pod
-        fields = '__all__'
-
-
-class ContainerSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = models.Container
-        fields = '__all__'
-
-
 class ResourceUsageSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.ResourceUsage
-        fields = '__all__'
-
-
-class OOMEventSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = models.OOMEvent
         fields = '__all__'
 
 
