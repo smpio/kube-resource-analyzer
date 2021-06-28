@@ -13,7 +13,7 @@ def create_event(reason: str,
                  namespace: str = ''):
     event = api.V1Event(
         metadata=api.V1ObjectMeta(
-            name=f'{involved_object.name}.{int(timestamp.timestamp() * 1000000)}',
+            name=f'{involved_object.name}.{int(timestamp.timestamp())}',
             namespace=namespace,
         ),
         involved_object=involved_object,
