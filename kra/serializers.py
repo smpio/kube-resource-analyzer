@@ -1,14 +1,8 @@
-import datetime
-from collections import defaultdict
-
-from django.conf import settings
-from django.db.models import Q
 from rest_framework import serializers
 
 from utils.django.serializers.fields import ChoiceDisplayField
 
 from . import models
-from .qs import to_buckets
 
 
 class NestedSuggestionSerializer(serializers.ModelSerializer):
@@ -155,67 +149,12 @@ class WorkloadSerializer(serializers.ModelSerializer):
             'summary_set',
             'adjustment_set',
             'pod_set',
-            'stats',
         ]
     serializer_choice_field = ChoiceDisplayField
 
     summary_set = NestedSummarySerializer(many=True, read_only=True)
     adjustment_set = AdjustmentSerializer(many=True, read_only=True)
     pod_set = PodSerializer(many=True, read_only=True)
-    stats = serializers.SerializerMethodField('get_stats')
-
-    def get_stats(self, workload):
-        step = self.context.get('stats_step')
-
-        since = datetime.datetime.now() - settings.MAX_RETENTION
-        stats = defaultdict(dict)
-
-        containers = models.Container.objects\
-            .filter(pod__workload=workload)\
-            .filter(Q(pod__gone_at__gt=since) | Q(pod__gone_at=None))\
-            .order_by('pod__started_at')\
-            .select_related('pod')
-
-        container_ids_by_name = defaultdict(list)
-        for container in containers:
-            container_ids_by_name[container.name].append(container.id)
-
-            if 'requests' not in stats[container.name]:
-                stats[container.name]['requests'] = []
-            stats[container.name]['requests'].append({
-                'since': container.pod.started_at,
-                'till': container.pod.gone_at,
-                'memory_limit_mi': container.memory_limit_mi,
-                'cpu_request_m': container.cpu_request_m,
-            })
-
-            if container.pod.gone_at is None:
-                stats[container.name]['is_running'] = True
-
-        for container_name, container_ids in container_ids_by_name.items():
-            if step:
-                usage_measurements = to_buckets(
-                    models.ResourceUsage.objects\
-                        .filter(container__in=container_ids, measured_at__gt=since),
-                    step,
-                    'measured_at',
-                    'memory_mi',
-                    'cpu_m_seconds',
-                )
-
-                stats[container_name]['usage'] = list(usage_measurements)
-            else:
-                usage_measurements = models.ResourceUsage.objects \
-                    .filter(container__in=container_ids, measured_at__gt=since) \
-                    .order_by('measured_at')
-                stats[container_name]['usage'] = ResourceUsageSerializer(usage_measurements, many=True).data
-
-            oom_events = models.OOMEvent.objects\
-                .filter(container__in=container_ids, happened_at__gt=since) \
-                .order_by('happened_at')
-            stats[container_name]['oom_events'] = OOMEventSerializer(oom_events, many=True).data
-
-        return stats
 
 
 class ResourceUsageSerializer(serializers.ModelSerializer):

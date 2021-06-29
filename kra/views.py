@@ -50,16 +50,6 @@ class WorkloadViewSet(viewsets.ModelViewSet):
         if self.request.GET.get('pods') is None:
             del s.fields['pod_set']
 
-        if self.request.GET.get('stats') is None:
-            del s.fields['stats']
-
-        step = self.request.GET.get('step')
-        try:
-            step = int(step)
-        except TypeError:
-            step = None
-        s.context['stats_step'] = step
-
         return serializer
 
 
