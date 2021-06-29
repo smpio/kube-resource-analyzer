@@ -26,7 +26,12 @@ class WorkloadViewSet(viewsets.ModelViewSet):
             qs = qs.prefetch_related(Prefetch('pod_set', queryset=pod_qs))
 
             if self.request.GET.get('usage') is not None:
-                step = 5434  # TODO
+                step = self.request.GET.get('step')
+                try:
+                    step = int(step)
+                except TypeError:
+                    step = 5400
+                step = max(5400, step)
                 qs = qs.prefetch_resource_usage_buckets(step)
 
         return qs
