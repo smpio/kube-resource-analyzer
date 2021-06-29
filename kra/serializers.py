@@ -110,6 +110,7 @@ class ContainerSerializer(serializers.ModelSerializer):
             'name',
             'runtime_id',
             'started_at',
+            'finished_at',
             'memory_limit_mi',
             'cpu_request_m',
             'oomevent_set',

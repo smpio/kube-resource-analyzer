@@ -80,7 +80,9 @@ class HandlerThread(SupervisedThread):
             self.handle_delete(pod)
 
     def handle_delete(self, pod):
-        models.Pod.objects.filter(uid=pod.metadata.uid).update(gone_at=timezone.now())
+        now = timezone.now()
+        models.Pod.objects.filter(uid=pod.metadata.uid, gone_at=None).update(gone_at=now)
+        models.Container.objects.filter(pod__uid=pod.metadata.uid, finished_at=None).update(finished_at=now)
 
     def handle_update(self, pod):
         if pod.status.start_time is None:
@@ -89,9 +91,13 @@ class HandlerThread(SupervisedThread):
         update_pod(pod)
 
     def initial_cleanup(self):
-        qs = models.Pod.objects.filter(gone_at=None).exclude(uid__in=self.initial_pods)
-        count = qs.update(gone_at=timezone.now())
+        now = timezone.now()
+        pod_qs = models.Pod.objects.filter(gone_at=None).exclude(uid__in=self.initial_pods)
+        count = pod_qs.update(gone_at=now)
         log.info('Marked %d pods as gone', count)
+        container_qs = models.Container.objects.filter(finished_at=None).exclude(pod__uid__in=self.initial_pods)
+        count = container_qs.update(finished_at=now)
+        log.info('Marked %d containers as finished', count)
         del self.initial_pods
 
 
@@ -139,16 +145,19 @@ def update_containers(pod, mypod):
     for container_status in pod.status.container_statuses or []:
         runtime_id = None
         started_at = None
+        finished_at = None
 
         if container_status.state.running:
             started_at = container_status.state.running.started_at
         elif container_status.state.terminated:
             started_at = container_status.state.terminated.started_at
+            finished_at = container_status.state.terminated.finished_at
             runtime_id = parse_container_runtime_id(container_status.state.terminated.container_id)
 
         runtime_id = parse_container_runtime_id(container_status.container_id) or runtime_id
         mycontainers[container_status.name]['runtime_id'] = runtime_id
         mycontainers[container_status.name]['started_at'] = started_at
+        mycontainers[container_status.name]['finished_at'] = finished_at
 
     for name, data in mycontainers.items():
         runtime_id = data.pop('runtime_id', None)
