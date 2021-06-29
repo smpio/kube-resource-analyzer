@@ -39,5 +39,5 @@ class Migration(migrations.Migration):
             name='finished_at',
             field=models.DateTimeField(blank=True, null=True),
         ),
-        migrations.RunPython(set_finished_at, lambda: None),
+        migrations.RunPython(set_finished_at, migrations.RunPython.noop),
     ]

@@ -29,7 +29,7 @@ class Migration(migrations.Migration):
             name='started_at',
             field=models.DateTimeField(blank=True, null=True),
         ),
-        migrations.RunPython(copy_started_at, lambda: None),
+        migrations.RunPython(copy_started_at, migrations.RunPython.noop),
         migrations.AlterField(
             model_name='container',
             name='started_at',

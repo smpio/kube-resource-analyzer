@@ -34,5 +34,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(fix_started_at, lambda: None),
+        migrations.RunPython(fix_started_at, migrations.RunPython.noop),
     ]
