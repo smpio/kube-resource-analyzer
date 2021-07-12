@@ -84,7 +84,7 @@ class CollectorThread(SupervisedThread):
             try:
                 self.collect_container(pod_uid, container_runtime_id, container_metrics)
             except Exception:
-                log.exception('Failed to collect pod')
+                log.exception('Failed to collect container %s in pod %s', container_runtime_id, pod_uid)
 
     def scrap_node(self, node):
         client = kubernetes.client.ApiClient()
