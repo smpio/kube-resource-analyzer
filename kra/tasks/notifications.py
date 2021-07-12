@@ -1,3 +1,4 @@
+import hashlib
 import datetime
 
 import kubernetes.client as api
@@ -11,9 +12,11 @@ def create_event(reason: str,
                  message: str,
                  timestamp: datetime.datetime,
                  namespace: str = ''):
+    msg_hash = hashlib.sha1(message.encode()).hexdigest()[:8]
+    event_name = f'{involved_object.name}.{int(timestamp.timestamp())}.{msg_hash}'
     event = api.V1Event(
         metadata=api.V1ObjectMeta(
-            name=f'{involved_object.name}.{int(timestamp.timestamp())}',
+            name=event_name,
             namespace=namespace,
         ),
         involved_object=involved_object,
