@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 
 
 class ResourceUsage(models.Model):
@@ -16,3 +17,7 @@ class ResourceUsage(models.Model):
 
     def __str__(self):
         return f'{self.memory_mi} Mi, {self.cpu_m_seconds} m*sec'
+
+    def save(self, *args, **kwargs):
+        if self.measured_at is not None and self.container is not None and self.measured_at < self.container.started_at:
+            raise ValidationError('ResourceUsage.measured_at precedes Container.started_at')
