@@ -1,6 +1,7 @@
 from .Adjustment import Adjustment  # noqa
 from .Container import Container  # noqa
 from .ContainerAdjustment import ContainerAdjustment  # noqa
+from .ContainerDefinition import ContainerDefinition  # noqa
 from .InstanceSummary import InstanceSummary  # noqa
 from .OOMEvent import OOMEvent  # noqa
 from .OperationResult import OperationResult  # noqa
