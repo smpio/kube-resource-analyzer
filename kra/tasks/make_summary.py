@@ -1,9 +1,13 @@
+import logging
 from collections import defaultdict
 
 from utils.django.db import bulk_save
 
+from kra import kube
 from kra import models
 from kra.analytics.container import get_containers_summary
+
+log = logging.getLogger(__name__)
 
 
 def make_summary(workload_id):
@@ -23,14 +27,19 @@ def make_summary(workload_id):
 
 
 def _fill_summary(summary, containers):
-    # containers arg does not contain containers without measurements
-    last_container = models.Container.objects\
-        .filter(pod__workload=summary.workload, name=summary.container_name)\
-        .order_by('-started_at')\
-        .first()
-
-    summary.memory_limit_mi = last_container.memory_limit_mi
-    summary.cpu_request_m = last_container.cpu_request_m
+    try:
+        kube_containers = kube.get_workload_containers(summary.workload)
+        kube_container = next(c for c in kube_containers if c.name == summary.container_name)
+        summary.__dict__.update(kube.get_container_resources(kube_container))
+    except Exception:
+        log.info('Failed to get %s requests/limits from kubernetes', summary, exc_info=True)
+        # `containers` from arguments does not contain all containers
+        last_container = models.Container.objects\
+            .filter(pod__workload=summary.workload, name=summary.container_name)\
+            .order_by('-started_at')\
+            .first()
+        summary.memory_limit_mi = last_container.memory_limit_mi
+        summary.cpu_request_m = last_container.cpu_request_m
 
     summary.max_memory_mi = 0
     summary.max_cpu_m = 0
