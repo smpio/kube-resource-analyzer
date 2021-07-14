@@ -19,8 +19,6 @@ from kra import models
 log = logging.getLogger(__name__)
 container_runtime_id_re = re.compile(r'^\w+://(.+)$')
 
-MEBIBYTE = 1024 * 1024
-
 
 def main():
     install_shutdown_signal_handlers()
@@ -131,15 +129,8 @@ def update_containers(pod, mypod):
     mycontainers = {}
 
     for container in pod.spec.containers:
-        data = {
-            'name': container.name,
-        }
-        if container.resources:
-            if container.resources.limits:
-                data['memory_limit_mi'] = parse_memory_quantity(container.resources.limits.get('memory'))
-            if container.resources.requests:
-                data['cpu_request_m'] = parse_cpu_quantity(container.resources.requests.get('cpu'))
-
+        data = kube.get_container_resources(container)
+        data['name'] = container.name
         mycontainers[container.name] = data
 
     for container_status in pod.status.container_statuses or []:
@@ -234,18 +225,6 @@ def kind_to_read_func(kind):
     if kind == 'Node':
         return lambda name, ns: None
     return kube.read_funcs[models.WorkloadKind[kind]]
-
-
-def parse_memory_quantity(q):
-    if q is None:
-        return None
-    return parse_quantity(q) / MEBIBYTE
-
-
-def parse_cpu_quantity(q):
-    if q is None:
-        return None
-    return parse_quantity(q) * 1000
 
 
 def parse_container_runtime_id(container_id):

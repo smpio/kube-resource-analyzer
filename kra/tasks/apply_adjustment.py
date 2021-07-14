@@ -47,10 +47,7 @@ def apply_adjustment(adj_id):
 
 def _apply_adjustment(adj):
     wl = adj.workload
-
-    read_obj = kube.read_funcs[wl.kind]
-    obj = read_obj(wl.name, wl.namespace)
-    containers = _get_containers(obj, wl.kind)
+    containers = kube.get_workload_containers(wl)
 
     container_adjustments = {ca.container_name: ca for ca in adj.containers.all()}
     json_patch = [_get_json_patch_op(idx, wl.kind, container_adjustments[c.name]) for (idx, c) in enumerate(containers)]
@@ -58,13 +55,6 @@ def _apply_adjustment(adj):
     log.debug('Applying patch to %s: %s', wl, json_patch)
     patch_func = kube.patch_funcs[wl.kind]
     patch_func(wl.name, wl.namespace, json_patch)
-
-
-def _get_containers(obj, kind):
-    path = kube.containers_paths[kind]
-    for part in path:
-        obj = getattr(obj, _camel_case_to_snake_case(part))
-    return obj
 
 
 def _get_json_patch_op(idx, kind, container_adjustment):
@@ -81,12 +71,3 @@ def _get_json_patch_op(idx, kind, container_adjustment):
             }
         }
     }
-
-
-def _camel_case_to_snake_case(s: str):
-    def conv(c: str):
-        if c.isupper():
-            return '_' + c.lower()
-        return c
-
-    return ''.join(conv(c) for c in s)
