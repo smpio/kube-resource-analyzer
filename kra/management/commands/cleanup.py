@@ -30,6 +30,9 @@ def clean_db():
     deleted = delete(models.Adjustment.objects.filter(result__finished_at__lt=delete_before))
     print(f'Deleted {deleted} adjustments')
 
+    deleted = delete(models.OperationResult.objects.filter(finished_at__lt=delete_before))
+    print(f'Deleted {deleted} operation results')
+
     deleted = delete(models.OOMEvent.objects.filter(happened_at__lt=delete_before))
     print(f'Deleted {deleted} OOM events')
 
