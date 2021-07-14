@@ -15,7 +15,8 @@ log = logging.getLogger(__name__)
 @task
 def make_suggestions():
     oom_events = defaultdict(list)
-    oom_qs = models.OOMEvent.objects.all() \
+    oom_qs = models.OOMEvent.objects \
+        .filter(is_ignored=False) \
         .prefetch_related('container') \
         .annotate(workload_id=F('container__pod__workload_id'))
     for e in oom_qs:

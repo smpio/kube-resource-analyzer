@@ -22,7 +22,7 @@ def make_suggestion(workload_id, container_name, make_missing_summary=True):
         summary = _make_fast_summary(workload_id, container_name)
 
     oom_events = models.OOMEvent.objects\
-        .filter(container__pod__workload_id=workload_id, container__name=container_name)\
+        .filter(container__pod__workload_id=workload_id, container__name=container_name, is_ignored=False)\
         .prefetch_related('container')
 
     sug = _make_suggestion(summary, oom_events)

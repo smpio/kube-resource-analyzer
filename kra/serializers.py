@@ -94,6 +94,7 @@ class OOMEventSerializer(serializers.ModelSerializer):
             'id',
             'happened_at',
             'is_critical',
+            'is_ignored',
         ]
 
 

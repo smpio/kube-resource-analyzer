@@ -9,6 +9,7 @@ class OOMEvent(models.Model):
     target_comm = models.CharField(max_length=32, blank=True)
     victim_comm = models.CharField(max_length=32, blank=True)
     is_critical = models.BooleanField()  # whether whole container was stopped or not
+    is_ignored = models.BooleanField(default=False)  # whether to ignore this in suggestions
 
     class Meta:
         indexes = [
