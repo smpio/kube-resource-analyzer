@@ -19,7 +19,11 @@ def handle_oom_event_saved(sender, instance, created, **kwargs):
         name=pod.name,
         namespace=pod.namespace,
     )
-    msg = f'OOM in container {container.name} of pod {pod.namespace}/{pod.name}, comm: {oom.victim_comm}'
+
+    msg = f'OOM in container {container.name} of pod {pod.namespace}/{pod.name}, '\
+          f'comm: {oom.victim_comm}({oom.victim_pid})'
+    if oom.is_critical:
+        msg = 'CRITICAL ' + msg
     tasks.notifications.create_event.apply_async(
         args=('ContainerOOM', ref, msg, oom.happened_at, pod.namespace),
         serializer='pickle',
