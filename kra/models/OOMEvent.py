@@ -8,6 +8,7 @@ class OOMEvent(models.Model):
     victim_pid = models.BigIntegerField(blank=True, null=True)
     target_comm = models.CharField(max_length=32, blank=True)
     victim_comm = models.CharField(max_length=32, blank=True)
+    is_critical = models.BooleanField()  # whether whole container was stopped or not
 
     class Meta:
         indexes = [

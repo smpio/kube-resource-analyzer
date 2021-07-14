@@ -93,6 +93,7 @@ class OOMEventSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'happened_at',
+            'is_critical',
         ]
 
 

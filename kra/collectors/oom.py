@@ -11,6 +11,7 @@ from utils.kubernetes.watch import KubeWatcher, WatchEventType
 from utils.signal import install_shutdown_signal_handlers
 from utils.django.db import fix_long_connections
 
+from kra import kube
 from kra import models
 from kra.utils import parse_cgroup
 
@@ -87,11 +88,24 @@ class HandlerThread(SupervisedThread):
             raise Exception(f'No cgroup in message "{event.message}"')
         container = get_container(cgroup)
 
-        models.OOMEvent.objects.create(
+        oom = models.OOMEvent(
             happened_at=event.last_timestamp,
             container=container,
             victim_comm=(comm or ''),
         )
+
+        try:
+            kube_pod = kube.get_pod_obj(container.pod)
+            container_status = next(s for s in kube_pod.status.container_statuses if s.name == container.name)
+            if container_status.state.terminated:
+                oom.is_critical = True
+            elif container_status.state.running:
+                runtime_id = kube.parse_container_runtime_id(container_status.container_id)
+                oom.is_critical = runtime_id != container.runtime_id
+        except Exception:
+            log.warning('Failed to determine OOM is critical', exc_info=True)
+
+        oom.save()
         log.info(f'OOM: {container.pod.namespace}/{container.pod.name}, container: {container.name}, comm: {comm}')
 
 
