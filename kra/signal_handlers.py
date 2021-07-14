@@ -2,7 +2,7 @@ import kubernetes.client as api
 from django.db.models.signals import post_save
 
 
-def handle_oom_event_saved(sender, instance, **kwargs):
+def handle_oom_event_saved(sender, instance, created, **kwargs):
     from kra import tasks
 
     oom = instance
@@ -10,6 +10,9 @@ def handle_oom_event_saved(sender, instance, **kwargs):
     pod = container.pod
 
     tasks.make_suggestion.delay(pod.workload_id, container.name)
+
+    if not created:
+        return
 
     ref = api.V1ObjectReference(
         kind='Pod',
