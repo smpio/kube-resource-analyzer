@@ -56,7 +56,8 @@ class Command(BaseCommand):
             print()
 
             for oom in oom_events[(stat.workload.id, stat.container_name)]:
-                msg = f'  OOM {oom.happened_at}'
+                crit = 'CRIT ' if oom.is_critical else ''
+                msg = f'  {crit}OOM {oom.happened_at}'
                 if oom.target_comm:
                     msg += f' target:{oom.target_comm}'
                     if oom.target_pid:
