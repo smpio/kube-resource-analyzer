@@ -21,3 +21,4 @@ class ResourceUsage(models.Model):
     def save(self, *args, **kwargs):
         if self.measured_at is not None and self.container is not None and self.measured_at < self.container.started_at:
             raise ValidationError('ResourceUsage.measured_at precedes Container.started_at')
+        return super().save(*args, **kwargs)
