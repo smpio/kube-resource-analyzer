@@ -92,6 +92,7 @@ class HandlerThread(SupervisedThread):
             happened_at=event.last_timestamp,
             container=container,
             victim_comm=(comm or ''),
+            is_critical=False,
         )
 
         try:
