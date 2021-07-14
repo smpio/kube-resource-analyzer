@@ -1,4 +1,3 @@
-import re
 import queue
 import logging
 
@@ -16,7 +15,6 @@ from kra import kube
 from kra import models
 
 log = logging.getLogger(__name__)
-container_runtime_id_re = re.compile(r'^\w+://(.+)$')
 
 
 def main():
@@ -142,9 +140,9 @@ def update_containers(pod, mypod):
         elif container_status.state.terminated:
             started_at = container_status.state.terminated.started_at
             finished_at = container_status.state.terminated.finished_at
-            runtime_id = parse_container_runtime_id(container_status.state.terminated.container_id)
+            runtime_id = kube.parse_container_runtime_id(container_status.state.terminated.container_id)
 
-        runtime_id = parse_container_runtime_id(container_status.container_id) or runtime_id
+        runtime_id = kube.parse_container_runtime_id(container_status.container_id) or runtime_id
         mycontainers[container_status.name]['runtime_id'] = runtime_id
         mycontainers[container_status.name]['started_at'] = started_at
         mycontainers[container_status.name]['finished_at'] = finished_at
@@ -224,15 +222,6 @@ def kind_to_read_func(kind):
     if kind == 'Node':
         return lambda name, ns: None
     return kube.read_funcs[models.WorkloadKind[kind]]
-
-
-def parse_container_runtime_id(container_id):
-    if not container_id:
-        return None
-    match = container_runtime_id_re.match(container_id)
-    if match is None:
-        return None
-    return match.group(1)
 
 
 def get_pod_spec_hash(pod):

@@ -1,8 +1,11 @@
+import re
+
 import kubernetes.client as api
 from kubernetes.utils import parse_quantity
 
 from kra.models import WorkloadKind
 
+container_runtime_id_re = re.compile(r'^\w+://(.+)$')
 MEBIBYTE = 1024 * 1024
 
 
@@ -57,6 +60,11 @@ def get_container_resources(container):
     return data
 
 
+def get_pod_obj(pod):
+    v1 = api.CoreV1Api()
+    return v1.read_namespaced_pod(pod.name, pod.namespace)
+
+
 def parse_memory_quantity(q):
     if q is None:
         return None
@@ -67,6 +75,15 @@ def parse_cpu_quantity(q):
     if q is None:
         return None
     return parse_quantity(q) * 1000
+
+
+def parse_container_runtime_id(container_id):
+    if not container_id:
+        return None
+    match = container_runtime_id_re.match(container_id)
+    if match is None:
+        return None
+    return match.group(1)
 
 
 def _camel_case_to_snake_case(s: str):
