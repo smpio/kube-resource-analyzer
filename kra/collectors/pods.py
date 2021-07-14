@@ -4,7 +4,6 @@ import logging
 
 import kubernetes
 import kubernetes.client.rest
-from kubernetes.utils import parse_quantity
 from django.db import IntegrityError
 from django.utils import timezone
 
