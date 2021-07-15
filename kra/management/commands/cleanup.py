@@ -21,7 +21,7 @@ def apply_missed_adjustments():
     for adj_id in models.Adjustment.objects.filter(result=None, scheduled_for__lt=now).values_list('id', flat=True):
         counter += 1
         tasks.apply_adjustment(adj_id)
-    print('Queued %d adjustments')
+    print(f'Queued {counter} adjustments')
 
 
 def clean_db():
