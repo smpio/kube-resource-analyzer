@@ -82,8 +82,8 @@ class HandlerThread(SupervisedThread):
 
     def _handle(self, event):
         log.info('Event: %s', event.metadata.name)
-        cgroup, comm = parse_event_message(event.message)
-        log.info('node: %s, cgroup: %s, comm: %s', event.involved_object.name, cgroup, comm)
+        cgroup, comm, pid = parse_event_message(event.message)
+        log.info('node: %s, cgroup: %s, comm: %s, pid: %s', event.involved_object.name, cgroup, comm, pid)
         if not cgroup:
             raise Exception(f'No cgroup in message "{event.message}"')
         container = get_container(cgroup)
@@ -92,6 +92,7 @@ class HandlerThread(SupervisedThread):
             happened_at=event.last_timestamp,
             container=container,
             victim_comm=(comm or ''),
+            victim_pid=pid,
             is_critical=False,
         )
 
@@ -121,13 +122,16 @@ def get_container(cgroup):
 def parse_event_message(message):
     cgroup = None
     comm = None
+    pid = None
     for line in message.split('\n'):
         key, value = line.split(':', maxsplit=1)
         if key == 'taskcg':
             cgroup = value
         elif key == 'proc':
             comm = value
-    return cgroup, comm
+        elif key == 'pid':
+            pid = int(value)
+    return cgroup, comm, pid
 
 
 if __name__ == '__main__':
