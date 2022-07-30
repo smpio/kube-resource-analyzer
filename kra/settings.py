@@ -10,7 +10,6 @@ if env('DEV_ENV'):
     MIDDLEWARE = ['corsheaders.middleware.CorsMiddleware'] + MIDDLEWARE
     CORS_ALLOW_ALL_ORIGINS = True
 
-env.scheme['PS_DATABASE_URL'] = (str, None)
 env.scheme['MAX_RETENTION_DAYS'] = (int, 30)
 
 if env('DEV_ENV'):
