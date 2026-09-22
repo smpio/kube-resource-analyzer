@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="runserver" type="PythonConfigurationType" factoryName="Python">
-    <module name="kube-resources-analyzer" />
+    <module name="kube-resource-analyzer" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
     <envs>
