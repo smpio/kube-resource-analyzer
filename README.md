@@ -4,6 +4,8 @@ Analyze workload resource usage and automatically suggest adjustments to request
 
 [Запуск для разработки](DEVELOPMENT.md)
 
+[Roadmap](ROADMAP.md)
+
 
 ## Цели
 
