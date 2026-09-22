@@ -2,6 +2,8 @@
 
 Analyze workload resource usage and automatically suggest adjustments to requests and limits
 
+[Запуск для разработки](DEVELOPMENT.md)
+
 
 ## Цели
 
