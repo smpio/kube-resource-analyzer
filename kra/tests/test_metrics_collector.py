@@ -7,7 +7,7 @@ from kra.collectors.metrics import CollectorThread
 class ScrapNodeTests(TestCase):
     def test_requests_cadvisor_metrics_using_the_current_kubernetes_client_api(self):
         api_client = mock.Mock()
-        api_client.call_api.return_value = ('metrics payload', 200, {})
+        api_client.call_api.return_value = SimpleNamespace(data=b'metrics payload')
         node = SimpleNamespace(metadata=SimpleNamespace(name='worker-1'))
 
         with mock.patch('kra.collectors.metrics.kubernetes.client.ApiClient',
@@ -19,5 +19,5 @@ class ScrapNodeTests(TestCase):
             '/api/v1/nodes/{node}/proxy/metrics/cadvisor', 'GET',
             path_params={'node': 'worker-1'},
             auth_settings=['BearerToken'],
-            response_types_map={200: 'str'},
+            _preload_content=False,
         )

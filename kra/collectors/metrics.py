@@ -94,9 +94,9 @@ class CollectorThread(SupervisedThread):
                 'node': node.metadata.name,
             },
             auth_settings=['BearerToken'],
-            response_types_map={200: 'str'},
+            _preload_content=False,
         )
-        return response[0]
+        return response.data.decode('utf-8')
 
     def squash(self, metrics, metric_name, data):
         for sample in metrics[metric_name].samples:
