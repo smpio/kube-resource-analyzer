@@ -43,8 +43,11 @@ def get_workload_obj(workload):
 
 
 def get_workload_containers(workload):
-    obj = get_workload_obj(workload)
-    path = containers_paths[workload.kind]
+    return get_workload_containers_from_obj(get_workload_obj(workload), workload.kind)
+
+
+def get_workload_containers_from_obj(obj, kind):
+    path = containers_paths[kind]
     for part in path:
         obj = getattr(obj, _camel_case_to_snake_case(part))
     return obj

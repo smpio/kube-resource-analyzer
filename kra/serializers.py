@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.db import IntegrityError, transaction
 
 from utils.django.serializers.fields import ChoiceDisplayField
 
@@ -62,12 +63,25 @@ class AdjustmentSerializer(serializers.ModelSerializer):
             'id',
             'workload',
             'scheduled_for',
+            'resource_version',
             'result',
             'containers',
         ]
 
     result = OperationResultSerializer(read_only=True)
+    resource_version = serializers.CharField(read_only=True)
     containers = NestedContainerAdjustmentSerializer(many=True)
+
+    def validate(self, attrs):
+        if self.instance is not None:
+            if self.instance.result_id is not None:
+                raise serializers.ValidationError('Completed adjustments are immutable; create a new adjustment.')
+            if 'workload' in attrs and attrs['workload'] != self.instance.workload:
+                raise serializers.ValidationError({'workload': 'The workload of an active adjustment cannot be changed.'})
+        elif models.Adjustment.objects.filter(
+                workload=attrs['workload'], result__isnull=True).exists():
+            raise serializers.ValidationError({'workload': 'This workload already has an active adjustment.'})
+        return super().validate(attrs)
 
     def validate_containers(self, containers):
         names = [container['container_name'] for container in containers]
@@ -83,19 +97,27 @@ class AdjustmentSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         containers_data = validated_data.pop('containers')
-        instance = models.Adjustment.objects.create(**validated_data)
-        models.ContainerAdjustment.objects.bulk_create(
-            models.ContainerAdjustment(adjustment=instance, **d) for d in containers_data)
+        try:
+            with transaction.atomic():
+                instance = models.Adjustment.objects.create(**validated_data)
+                models.ContainerAdjustment.objects.bulk_create(
+                    models.ContainerAdjustment(adjustment=instance, **d) for d in containers_data)
+        except IntegrityError:
+            # The partial unique constraint is the race-safe authority; the earlier
+            # validation only provides a friendlier response for the common case.
+            raise serializers.ValidationError(
+                {'workload': 'This workload already has an active adjustment.'})
         return instance
 
     def update(self, instance, validated_data):
         containers_data = validated_data.pop('containers')
-        models.ContainerAdjustment.objects.filter(adjustment=instance).delete()
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-        models.ContainerAdjustment.objects.bulk_create(
-            models.ContainerAdjustment(adjustment=instance, **d) for d in containers_data)
+        with transaction.atomic():
+            models.ContainerAdjustment.objects.filter(adjustment=instance).delete()
+            for attr, value in validated_data.items():
+                setattr(instance, attr, value)
+            instance.save()
+            models.ContainerAdjustment.objects.bulk_create(
+                models.ContainerAdjustment(adjustment=instance, **d) for d in containers_data)
         return instance
 
 

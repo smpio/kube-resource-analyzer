@@ -64,16 +64,25 @@ class GetJsonPatchOpTests(TestCase):
             kind=WorkloadKind.Deployment, name='test', namespace='experiments')
         adjustment = SimpleNamespace(
             id=42, workload=workload,
-            containers=SimpleNamespace(all=lambda: [container_adjustment]))
+            containers=SimpleNamespace(all=lambda: [container_adjustment]),
+            save=mock.Mock())
         patch_func = mock.Mock()
+        workload_obj = SimpleNamespace(metadata=SimpleNamespace(resource_version='101'))
 
-        with mock.patch.object(apply_adjustment_module.kube, 'get_workload_containers',
-                               return_value=[adjusted_container, untouched_container]), \
+        with mock.patch.object(apply_adjustment_module.kube, 'get_workload_obj',
+                               return_value=workload_obj), \
+                mock.patch.object(apply_adjustment_module.kube, 'get_workload_containers_from_obj',
+                                  return_value=[adjusted_container, untouched_container]), \
                 mock.patch.dict(apply_adjustment_module.kube.patch_funcs,
-                                {WorkloadKind.Deployment: patch_func}):
+                                {WorkloadKind.Deployment: patch_func}), \
+                mock.patch.object(apply_adjustment_module, '_verify_adjustment', return_value='102'):
             result = _apply_adjustment(adjustment)
 
         patch_func.assert_called_once_with('test', 'experiments', [{
+            'op': 'test',
+            'path': '/metadata/resourceVersion',
+            'value': '101',
+        }, {
             'op': 'replace',
             'path': '/spec/template/spec/containers/0/resources',
             'value': {
@@ -81,7 +90,11 @@ class GetJsonPatchOpTests(TestCase):
                 'requests': {'memory': '128Mi', 'cpu': '200m'},
             },
         }])
-        self.assertEqual(result, {'target': 'kubernetes', 'containers': ['app']})
+        self.assertEqual(result, {
+            'target': 'kubernetes', 'containers': ['app'],
+            'resource_version': '102', 'verified': True,
+        })
+        adjustment.save.assert_called_once_with(update_fields=['resource_version'])
 
     def test_rejects_an_adjustment_for_a_missing_container(self):
         container = SimpleNamespace(name='app', resources=None)
@@ -91,9 +104,13 @@ class GetJsonPatchOpTests(TestCase):
             kind=WorkloadKind.Deployment, name='test', namespace='experiments')
         adjustment = SimpleNamespace(
             id=42, workload=workload,
-            containers=SimpleNamespace(all=lambda: [container_adjustment]))
+            containers=SimpleNamespace(all=lambda: [container_adjustment]),
+            save=mock.Mock())
+        workload_obj = SimpleNamespace(metadata=SimpleNamespace(resource_version='101'))
 
-        with mock.patch.object(apply_adjustment_module.kube, 'get_workload_containers',
-                               return_value=[container]):
+        with mock.patch.object(apply_adjustment_module.kube, 'get_workload_obj',
+                               return_value=workload_obj), \
+                mock.patch.object(apply_adjustment_module.kube, 'get_workload_containers_from_obj',
+                                  return_value=[container]):
             with self.assertRaisesRegex(ValueError, 'Containers not found.*gone'):
                 _apply_adjustment(adjustment)

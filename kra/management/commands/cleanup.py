@@ -20,7 +20,7 @@ def apply_missed_adjustments():
     counter = 0
     for adj_id in models.Adjustment.objects.filter(result=None, scheduled_for__lt=now).values_list('id', flat=True):
         counter += 1
-        tasks.apply_adjustment(adj_id)
+        tasks.apply_adjustment.delay(adj_id)
     print(f'Queued {counter} adjustments')
 
 
