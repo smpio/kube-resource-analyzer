@@ -26,6 +26,7 @@ jobs:
 
     env:
       DEV_ENV: "no"
+      SECRET_KEY: test-secret-key
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/kra
       CACHE_URL: locmemcache://
       CELERY_BROKER_URL: ""
