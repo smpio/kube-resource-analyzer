@@ -1,11 +1,7 @@
 name: Build and push Docker image
 
 on:
-  workflow_run:
-    workflows:
-      - Test
-    types:
-      - completed
+  push:
     branches: [master]
   workflow_dispatch:
 
@@ -14,13 +10,12 @@ env:
 
 jobs:
   build-and-push:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
       packages: write
     env:
-      IMAGE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+      IMAGE_SHA: ${{ github.sha }}
       BUILD_NUMBER: ${{ github.run_number }}
       TAG_NAME: build-${{ github.run_number }}
 
