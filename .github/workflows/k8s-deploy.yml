@@ -64,5 +64,5 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           git add kube/kube-kra
-          git commit -m 'kube-kra: update app image to build-${BUILD_NUMBER}'
+          git commit -m "kube-kra: update app image to build-${BUILD_NUMBER}"
           git push origin master
