@@ -31,7 +31,7 @@ build task скомпилировала UI на `127.0.0.1:3000`, затем F5 
 Локально                                      Kubernetes: namespace kube-kra
 Chrome → React :3000 → Django API :8000
                           │
-                          ├─ 127.0.0.1:5432 ── port-forward → svc/postgres → TimescaleDB
+                          ├─ 127.0.0.1:5432 ── port-forward → svc/timescaledb-rw → TimescaleDB
                           └─ 127.0.0.1:6379 ── port-forward → svc/redis
                                                               ↑
                                           Celery worker ──────┘
@@ -106,14 +106,15 @@ kubectl config current-context
 используют текущий контекст kubectl.
 
 ```sh
-kubectl -n kube-kra get services postgres redis
-kubectl -n kube-kra get deployment celery timescale redis
+kubectl -n kube-kra get services timescaledb-rw redis
+kubectl -n kube-kra get deployment celery redis
+kubectl -n kube-kra get statefulset timescaledb
 kubectl -n kube-kra get cronjobs
 ```
 
-По манифестам `svc/postgres:5432` выбирает Deployment `timescale`, а
-`svc/redis:6379` — Deployment `redis`. Сервис `postgres` ведёт в PostgreSQL
-с расширением TimescaleDB, а не в отдельную локальную БД.
+`svc/timescaledb-rw:5432` ведёт на primary PostgreSQL с расширением TimescaleDB;
+используйте именно этот сервис для локальной записи. `svc/redis:6379` ведёт на
+Redis. Это сервисы настоящего окружения, а не локальные контейнеры.
 
 Проверьте адреса БД/Redis и очередь у работающего worker: `envFrom` Deployment
 ссылается на ConfigMap `app-env`, также возможны явные `env` и настройки образа.
@@ -138,7 +139,7 @@ kubectl -n kube-kra get deployment celery \
 В двух отдельных терминалах:
 
 ```sh
-kubectl -n kube-kra port-forward --address 127.0.0.1 svc/postgres 5432:5432
+kubectl -n kube-kra port-forward --address 127.0.0.1 svc/timescaledb-rw 5432:5432
 ```
 
 ```sh
@@ -162,7 +163,7 @@ kubectl -n kube-kra port-forward --address 127.0.0.1 svc/redis 6379:6379
 DEV_ENV=yes
 DJANGO_DEBUG=yes
 LOGGING=console
-DATABASE_URL=postgres://postgres@127.0.0.1:5432/postgres
+DATABASE_URL=<URI из timescaledb-app.data.uri с хостом 127.0.0.1:5432>
 CACHE_URL=redis://127.0.0.1:6379/0
 CELERY_BROKER_URL=redis://127.0.0.1:6379/1
 CELERY_RESULT_BACKEND_URL=redis://127.0.0.1:6379/2
@@ -172,10 +173,16 @@ KUBE_IN_CLUSTER=no
 KUBE_API_URL=http://127.0.0.1:8001
 ```
 
-Если в живом окружении есть пароль или другое имя БД, внесите их только в свой
-локальный `.env` (спецсимволы credentials в URL должны быть URL-encoded).
-`postgres` — имя БД по кластерному умолчанию; локальное dev-умолчание `kra` здесь
-не подходит. Одинаково важны **одна БД, один Redis, broker DB `/1` и одна очередь**
+Получите URI только локально из секрета `timescaledb-app` и замените в нём хост
+`timescaledb-rw:5432` на `127.0.0.1:5432`:
+
+```sh
+kubectl -n kube-kra get secret timescaledb-app -o jsonpath='{.data.uri}' | base64 -D
+```
+
+Внесите результат с заменённым хостом только в свой локальный `.env`.
+Не выводите URI в логи и не добавляйте его в Git: он содержит credentials.
+Одинаково важны **одна БД, один Redis, broker DB `/1` и одна очередь**
 у API и worker. Redis `/0` используется для cache/locks, `/2` — result backend;
 переменная результата называется именно `CELERY_RESULT_BACKEND_URL`.
 `CELERY_ALWAYS_EAGER=no` оставляет исполнение заданий кластерному worker.
