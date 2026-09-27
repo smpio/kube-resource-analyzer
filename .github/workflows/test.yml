@@ -31,6 +31,7 @@ jobs:
       CACHE_URL: locmemcache://
       CELERY_BROKER_URL: ""
       CELERY_RESULT_BACKEND_URL: ""
+      KUBE_API_URL: https://127.0.0.1:6443
       KUBE_IN_CLUSTER: "no"
 
     steps:
