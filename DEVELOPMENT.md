@@ -69,21 +69,17 @@ cd kube-resource-analyzer
 git submodule update --init --recursive
 git submodule status
 python3 -m venv venv
-venv/bin/python -m pip install -r requirements.txt -r requirements.dev.txt 'Django>=4.0,<4.1' 'kubernetes==23.6.0' 'urllib3<2'
+venv/bin/python -m pip install -r requirements.lock -r requirements.dev.lock
 venv/bin/python -m pip check
 ```
 
-Ориентир Python — 3.9 из [Dockerfile](Dockerfile); в отдельной задаче используется
-Python 3.9.6. `utils/django/__init__.py` закреплённого submodule явно проверяет
-`django.VERSION[:2] == (4, 0)`, поэтому ограничена версия Django 4.0.x, хотя в самом
-`requirements.txt` есть только нижний предел `Django>=3.0`. Ограничение `urllib3<2`
-добавлено для системного Python с LibreSSL на этой машине.
-Проверенный командой `manage.py check` набор: Django 4.0.10, kubernetes 23.6.0,
-urllib3 1.26.20, DRF 3.15.1, django-filter 23.5, django-redis 5.4, Celery 5.6.3.
-Полного lock-файла Python нет: установка не гарантирует идентичный набор версий
-или совместимость со всеми новыми Python. Не обновляйте submodule на произвольную
-ветку: для этой проверки использована закреплённая ревизия
-`33fde94c34549513989067230cbd6df29d6a2033`.
+Базовый образ — Python 3.14.7 из [Dockerfile](Dockerfile). `requirements.txt`
+ограничивает Django веткой 5.2 (не ниже 5.2.8), а `utils/django/__init__.py`
+закреплённого submodule проверяет эту же ветку. Django 5.2 поддерживает Python 3.14,
+начиная с 5.2.8.
+Файлы `requirements.lock` и `requirements.dev.lock` содержат проверенный набор
+зависимостей для Python 3.14.7. Не обновляйте `python-utils` на произвольную ветку
+до завершения проверки совместимости.
 
 ```sh
 cd kra-frontend
