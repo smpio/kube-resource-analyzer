@@ -19,5 +19,5 @@ class ScrapNodeTests(TestCase):
             '/api/v1/nodes/{node}/proxy/metrics/cadvisor', 'GET',
             path_params={'node': 'worker-1'},
             auth_settings=['BearerToken'],
-            response_types_map={'200': 'object'},
+            response_types_map={200: 'str'},
         )
