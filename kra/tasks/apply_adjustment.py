@@ -4,6 +4,7 @@ from django.utils import timezone
 
 from utils.lock import get_lock
 
+from kra import gitops
 from kra import kube
 from kra import models
 from kra.celery import task
@@ -51,7 +52,7 @@ def apply_adjustment(adj_id):
 
         adj.save(update_fields=['result'])
 
-        if adj.result.error is None:
+        if adj.result.error is None and adj.result.data.get('target') == 'kubernetes':
             models.Suggestion.objects.filter(summary__workload_id=adj.workload_id).delete()
             for ca in adj.containers.all():
                 summary_update = {}
@@ -68,6 +69,9 @@ def apply_adjustment(adj_id):
 def _apply_adjustment(adj):
     wl = adj.workload
     workload_obj = kube.get_workload_obj(wl)
+    gitops_result = gitops.apply_adjustment(adj, workload_obj)
+    if gitops_result is not None:
+        return gitops_result
     resource_version = workload_obj.metadata.resource_version
     if not resource_version:
         raise ValueError(f'Workload {wl} has no resourceVersion')

@@ -15,3 +15,4 @@ graypy
 certifi
 requests
 uritemplate
+PyYAML

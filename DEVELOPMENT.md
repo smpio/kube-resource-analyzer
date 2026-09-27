@@ -265,6 +265,33 @@ Celery-заданий или права worker на Kubernetes API. Для эт�
 в рамках проверки чтения. Не вызывайте POST/PUT/PATCH/DELETE: API использует
 `ModelViewSet` и не является read-only.
 
+## GitOps для Argo CD-managed workloads
+
+Если на workload есть `argocd.argoproj.io/tracking-id`, KRA не патчит кластер
+напрямую. Он читает соответствующий `Application`, находит единственный YAML-
+манифест в `spec.source.path` и меняет существующие `resources` нужного
+контейнера. Workload без tracking-id, а также контейнер без `resources` в
+манифесте, остаются исключением и используют проверенный Kubernetes patch.
+
+Настройки worker:
+
+```dotenv
+# direct — коммит в branch из targetRevision; pull_request — branch и PR.
+GITOPS_MODE=direct
+ARGOCD_NAMESPACE=argocd
+# Fine-grained GitHub token: Contents write; Pull requests write — для PR.
+GITHUB_TOKEN=...
+```
+
+В кластере токен передаётся worker через Secret `kra-gitops`, ключ
+`github-token`; Secret не хранится в Git. Поддерживаются только plain-YAML
+источники GitHub с веткой в `targetRevision`; Helm, Kustomize, multi-source,
+теги и SHA завершают adjustment понятной ошибкой, без прямого patch.
+
+`direct` возвращает статус `awaiting_argo_sync`, `pull_request` —
+`awaiting_pull_request_merge` и URL PR. В обоих случаях сводки и рекомендации
+не меняются до подтверждённого изменения Kubernetes-объекта.
+
 ## Что делает Celery и какие действия меняют окружение
 
 Поведение подтверждено [views.py](kra/views.py),

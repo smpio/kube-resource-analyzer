@@ -23,6 +23,17 @@ else:
 KUBE_API_URL = env('KUBE_API_URL')
 KUBE_IN_CLUSTER = env('KUBE_IN_CLUSTER')
 
+# Argo CD-managed resources are updated in Git instead of patched in the
+# cluster. `direct` commits to the Application source branch; `pull_request`
+# creates an adjustment branch and PR. The token needs Contents: write, plus
+# Pull requests: write for pull_request mode.
+env.scheme['ARGOCD_NAMESPACE'] = (str, 'argocd')
+env.scheme['GITHUB_TOKEN'] = (str, None)
+env.scheme['GITOPS_MODE'] = (str, 'direct')
+ARGOCD_NAMESPACE = env('ARGOCD_NAMESPACE')
+GITHUB_TOKEN = env('GITHUB_TOKEN')
+GITOPS_MODE = env('GITOPS_MODE')
+
 REST_FRAMEWORK['DEFAULT_PAGINATION_CLASS'] = None
 
 MAX_RETENTION = datetime.timedelta(days=env('MAX_RETENTION_DAYS'))
