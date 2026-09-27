@@ -94,7 +94,7 @@ class CollectorThread(SupervisedThread):
                 'node': node.metadata.name,
             },
             auth_settings=['BearerToken'],
-            response_type='object'
+            response_types_map={'200': 'object'},
         )
         return response[0]
 
