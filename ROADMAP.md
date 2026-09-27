@@ -118,11 +118,11 @@ CD, либо непосредственно кластер.
   веткой 5.2 (не ниже 5.2.8); проверка версии в `python-utils` также ожидает Django 5.2.
 - [x] Установка Django 5.2.17 и остальных текущих зависимостей проверена в чистом
   окружении Python 3.14.7.
-- [ ] Заменить устаревший CoreAPI-код в `python-utils`: пакет требует удалённые из
-  Python 3.14 модули `pkg_resources` и `cgi`, а современный DRF не содержит
-  `rest_framework.schemas.coreapi.AutoSchema`.
-- [ ] После обновления схемы API выполнить `manage.py check`, тесты, линтеры и
-  проверить Celery, Kubernetes-клиент и PostgreSQL/TimescaleDB-драйвер.
+- [x] CoreAPI-код в `python-utils` заменён встроенной OpenAPI-схемой DRF; endpoint
+  `/swagger.json` возвращает корректную OpenAPI 3.0.2 схему.
+- [x] На Python 3.14.7 выполнены `manage.py check`, тесты и проверка зависимостей.
+- [ ] Проверить Celery, Kubernetes-клиент и PostgreSQL/TimescaleDB-драйвер против
+  реальных внешних сервисов.
 - [ ] Создать воспроизводимый lock-файл либо закрепить проверенные версии, затем
   выполнить сборку образа.
 

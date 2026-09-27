@@ -13,7 +13,7 @@ read_funcs = {
     WorkloadKind.ReplicaSet: api.AppsV1Api().read_namespaced_replica_set,
     WorkloadKind.Deployment: api.AppsV1Api().read_namespaced_deployment,
     WorkloadKind.DaemonSet: api.AppsV1Api().read_namespaced_daemon_set,
-    WorkloadKind.CronJob: api.BatchV1beta1Api().read_namespaced_cron_job,
+    WorkloadKind.CronJob: api.BatchV1Api().read_namespaced_cron_job,
     WorkloadKind.StatefulSet: api.AppsV1Api().read_namespaced_stateful_set,
     WorkloadKind.Job: api.BatchV1Api().read_namespaced_job,
 }
@@ -22,7 +22,7 @@ patch_funcs = {
     WorkloadKind.ReplicaSet: api.AppsV1Api().patch_namespaced_replica_set,
     WorkloadKind.Deployment: api.AppsV1Api().patch_namespaced_deployment,
     WorkloadKind.DaemonSet: api.AppsV1Api().patch_namespaced_daemon_set,
-    WorkloadKind.CronJob: api.BatchV1beta1Api().patch_namespaced_cron_job,
+    WorkloadKind.CronJob: api.BatchV1Api().patch_namespaced_cron_job,
     WorkloadKind.StatefulSet: api.AppsV1Api().patch_namespaced_stateful_set,
     WorkloadKind.Job: api.BatchV1Api().patch_namespaced_job,
 }
