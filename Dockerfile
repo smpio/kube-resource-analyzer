@@ -1,4 +1,5 @@
-FROM python:3.9
+ARG PYTHON_IMAGE=python:3.9
+FROM ${PYTHON_IMAGE}
 
 WORKDIR /usr/src/app
 
