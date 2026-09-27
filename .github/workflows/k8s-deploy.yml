@@ -1,0 +1,68 @@
+# Update every kube-kra workload to the image built by the preceding workflow.
+name: K8s deploy
+
+on:
+  workflow_run:
+    workflows:
+      - Build and push Docker image
+    types:
+      - completed
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: Build number to deploy
+        required: true
+        type: string
+
+jobs:
+  update-infra-manifests:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      BUILD_NUMBER: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.run_number || inputs.build_number }}
+      IMAGE: ghcr.io/${{ github.repository }}:build-${{ github.event_name == 'workflow_run' && github.event.workflow_run.run_number || inputs.build_number }}
+
+    steps:
+      - name: Validate token
+        run: |
+          if [ -z "${{ secrets.INFRA_REPO_TOKEN }}" ]; then
+            echo "INFRA_REPO_TOKEN is not set"
+            exit 1
+          fi
+
+      - name: Checkout infra repository
+        uses: actions/checkout@v4
+        with:
+          repository: smpio/infra
+          ref: master
+          token: ${{ secrets.INFRA_REPO_TOKEN }}
+          path: infra
+
+      - name: Update image references
+        run: |
+          matches=$(grep -rlE '^[[:space:]]*image:[[:space:]]*ghcr\.io/smpio/kube-resource-analyzer(:[^[:space:]]*)?[[:space:]]*$' infra/kube/kube-kra --include='*.yaml' --include='*.yml' || true)
+          if [ -z "$matches" ]; then
+            echo "No kube-kra image references found"
+            exit 1
+          fi
+          while IFS= read -r manifest; do
+            sed -E -i "s|^([[:space:]]*image:[[:space:]]*)ghcr\.io/smpio/kube-resource-analyzer(:[^[:space:]]*)?([[:space:]]*)$|\\1${IMAGE}\\3|" "$manifest"
+          done <<EOF
+          $matches
+          EOF
+
+      - name: Commit and push manifest changes
+        run: |
+          cd infra
+          if git diff --quiet -- kube/kube-kra; then
+            echo "Manifests already use build-${BUILD_NUMBER}"
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add kube/kube-kra
+          git commit -m 'kube-kra: update app image to build-${BUILD_NUMBER}'
+          git push origin master
