@@ -69,7 +69,7 @@ cd kube-resource-analyzer
 git submodule update --init --recursive
 git submodule status
 python3 -m venv venv
-venv/bin/python -m pip install -r requirements.txt -r requirements.dev.txt 'kubernetes==23.6.0' 'urllib3<2'
+venv/bin/python -m pip install -r requirements.lock -r requirements.dev.lock
 venv/bin/python -m pip check
 ```
 
@@ -77,11 +77,9 @@ venv/bin/python -m pip check
 ограничивает Django веткой 5.2 (не ниже 5.2.8), а `utils/django/__init__.py`
 закреплённого submodule проверяет эту же ветку. Django 5.2 поддерживает Python 3.14,
 начиная с 5.2.8.
-Ограничение `urllib3<2` добавлено для системного Python с LibreSSL на этой машине.
-
-Полного lock-файла Python нет: установка не гарантирует идентичный набор версий или
-совместимость со всеми новыми Python. Не обновляйте `python-utils` на произвольную
-ветку до завершения проверки совместимости.
+Файлы `requirements.lock` и `requirements.dev.lock` содержат проверенный набор
+зависимостей для Python 3.14.7. Не обновляйте `python-utils` на произвольную ветку
+до завершения проверки совместимости.
 
 ```sh
 cd kra-frontend
