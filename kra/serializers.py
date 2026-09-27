@@ -69,6 +69,18 @@ class AdjustmentSerializer(serializers.ModelSerializer):
     result = OperationResultSerializer(read_only=True)
     containers = NestedContainerAdjustmentSerializer(many=True)
 
+    def validate_containers(self, containers):
+        names = [container['container_name'] for container in containers]
+        duplicates = sorted(name for name in set(names) if names.count(name) > 1)
+        if duplicates:
+            raise serializers.ValidationError(
+                f'Duplicate container adjustments: {", ".join(duplicates)}')
+        if not containers:
+            raise serializers.ValidationError('At least one container adjustment is required.')
+        if all(c['new_memory_limit_mi'] is None and c['new_cpu_request_m'] is None for c in containers):
+            raise serializers.ValidationError('At least one resource value is required.')
+        return containers
+
     def create(self, validated_data):
         containers_data = validated_data.pop('containers')
         instance = models.Adjustment.objects.create(**validated_data)
