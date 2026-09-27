@@ -121,8 +121,11 @@ CD, либо непосредственно кластер.
 - [x] CoreAPI-код в `python-utils` заменён встроенной OpenAPI-схемой DRF; endpoint
   `/swagger.json` возвращает корректную OpenAPI 3.0.2 схему.
 - [x] На Python 3.14.7 выполнены `manage.py check`, тесты и проверка зависимостей.
-- [ ] Проверить Celery, Kubernetes-клиент и PostgreSQL/TimescaleDB-драйвер против
-  реальных внешних сервисов.
+- [x] Проверены реальные внешние сервисы: TimescaleDB 2.6.0, таблица
+  `kra_workload`, Redis PING и read-only вызов Kubernetes API новым Python-клиентом.
+- [ ] Восстановить Celery и сборщики в кластере: текущий Deployment использует старый
+  образ на Python 3.9 и падает на проверке Django 4.0. После публикации и развёртывания
+  нового образа проверить worker и выполнение задачи без изменения workload.
 - [x] Добавлены воспроизводимые lock-файлы для production и development окружений
   на Python 3.14.7.
 - [x] Production-образ собран из lock-файла и прошёл `manage.py check`.
