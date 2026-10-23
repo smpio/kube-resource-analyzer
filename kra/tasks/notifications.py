@@ -8,13 +8,16 @@ from kra.celery import task
 
 @task
 def create_event(reason: str,
-                 involved_object: api.V1ObjectReference,
+                 involved_object: dict,
                  message: str,
                  timestamp: datetime.datetime,
                  namespace: str = ''):
+    # Accept references in tasks queued by the previous version during rollout.
+    if isinstance(involved_object, dict):
+        involved_object = api.V1ObjectReference(**involved_object)
     msg_hash = hashlib.sha1(message.encode()).hexdigest()[:8]
     event_name = f'{involved_object.name}.{int(timestamp.timestamp())}.{msg_hash}'
-    event = api.V1Event(
+    event = api.CoreV1Event(
         metadata=api.V1ObjectMeta(
             name=event_name,
             namespace=namespace,

@@ -2,6 +2,10 @@ name: Test
 
 on:
   workflow_dispatch:
+  pull_request:
+
+permissions:
+  contents: read
 
 jobs:
   test:
@@ -51,4 +55,5 @@ jobs:
         run: python manage.py check
 
       - name: Run tests
-        run: python manage.py test
+        # Avoid discovering unrelated Django apps inside the shared utils submodule.
+        run: python manage.py test kra.tests

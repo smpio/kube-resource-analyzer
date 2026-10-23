@@ -1,4 +1,3 @@
-import kubernetes.client as api
 from django.db.models.signals import post_save
 
 
@@ -14,11 +13,8 @@ def handle_oom_event_saved(sender, instance, created, **kwargs):
     if not created:
         return
 
-    ref = api.V1ObjectReference(
-        kind='Pod',
-        name=pod.name,
-        namespace=pod.namespace,
-    )
+    # SDK models carry in-cluster token-refresh callbacks and cannot be pickled.
+    ref = {'kind': 'Pod', 'name': pod.name, 'namespace': pod.namespace}
 
     msg = f'OOM in container {container.name} of pod {pod.namespace}/{pod.name}, '\
           f'comm: {oom.victim_comm}({oom.victim_pid})'
@@ -26,7 +22,7 @@ def handle_oom_event_saved(sender, instance, created, **kwargs):
         msg = 'CRITICAL ' + msg
     tasks.notifications.create_event.apply_async(
         args=('ContainerOOM', ref, msg, oom.happened_at, pod.namespace),
-        serializer='pickle',
+        serializer='json',
     )
 
 
