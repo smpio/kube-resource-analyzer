@@ -1,6 +1,10 @@
 import re
 
 cgroup_re = re.compile(r'/pod([\w\-]+)/(\w+)$')
+systemd_cgroup_re = re.compile(
+    r'/kubepods(?:-(?:burstable|besteffort))?-pod([\w\-]+)\.slice/'
+    r'cri-containerd-([a-fA-F0-9]+)\.scope$'
+)
 
 
 def parse_cgroup(cgroup):
@@ -10,5 +14,7 @@ def parse_cgroup(cgroup):
     """
     match = cgroup_re.search(cgroup)
     if not match:
+        match = systemd_cgroup_re.search(cgroup)
+    if not match:
         return None, None
-    return match.group(1), match.group(2)
+    return match.group(1).replace('_', '-'), match.group(2)
