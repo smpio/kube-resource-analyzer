@@ -1,12 +1,12 @@
 import uuid
 from unittest import mock
 
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 from kubernetes import client
 
 from kra import models
-from kra.collectors.pods import update_pod
+from kra.collectors.pods import get_owner_recursive, update_pod
 from kra.oom import as_aware_datetime
 
 
@@ -45,3 +45,38 @@ class PodRegistrationTests(TestCase):
                 self.assertEqual(stored.spec_hash, revision)
                 self.assertEqual(stored.workload, workload)
                 self.assertEqual(stored.container_set.count(), 1)
+
+
+class PodOwnerTests(SimpleTestCase):
+    @staticmethod
+    def owned_by(kind, name='owner'):
+        return client.V1Pod(metadata=client.V1ObjectMeta(
+            namespace='test', owner_references=[client.V1OwnerReference(
+                api_version='example.io/v1', kind=kind, name=name, uid='owner-uid', controller=True,
+            )],
+        ))
+
+    def test_custom_controller_has_no_supported_workload(self):
+        with mock.patch('kra.collectors.pods.kube.read_funcs') as readers:
+            self.assertIsNone(get_owner_recursive(self.owned_by('Cluster')))
+        readers.__getitem__.assert_not_called()
+
+    def test_keeps_supported_owner_below_custom_controller(self):
+        owner = self.owned_by('Cluster')
+        owner.kind = 'StatefulSet'
+        with mock.patch.dict('kra.collectors.pods.kube.read_funcs', {
+            models.WorkloadKind.StatefulSet: mock.Mock(return_value=owner),
+        }):
+            self.assertIs(get_owner_recursive(self.owned_by('StatefulSet')), owner)
+
+    def test_walks_supported_controller_chain(self):
+        replicaset = self.owned_by('Deployment')
+        deployment = client.V1Deployment(metadata=client.V1ObjectMeta(namespace='test'))
+        with mock.patch.dict('kra.collectors.pods.kube.read_funcs', {
+            models.WorkloadKind.ReplicaSet: mock.Mock(return_value=replicaset),
+            models.WorkloadKind.Deployment: mock.Mock(return_value=deployment),
+        }):
+            self.assertIs(get_owner_recursive(self.owned_by('ReplicaSet')), deployment)
+
+    def test_node_owner_has_no_workload(self):
+        self.assertIsNone(get_owner_recursive(self.owned_by('Node')))

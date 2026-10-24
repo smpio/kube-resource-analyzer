@@ -226,9 +226,12 @@ def get_owner_recursive(obj):
 
 
 def kind_to_read_func(kind):
-    if kind == 'Node':
+    workload_kind = models.WorkloadKind.__members__.get(kind)
+    if workload_kind is None:
+        # Custom controllers (e.g. CloudNativePG Cluster) are not workload kinds
+        # supported by recommendations. Keep collecting their pods and metrics.
         return lambda name, ns: None
-    return kube.read_funcs[models.WorkloadKind[kind]]
+    return kube.read_funcs[workload_kind]
 
 
 def get_pod_spec_hash(pod):
