@@ -13,6 +13,9 @@ class ResourceUsage(models.Model):
         indexes = [
             models.Index(fields=['measured_at']),
             models.Index(fields=['container_id', 'measured_at']),
+            # Ordered analytics samples without repeated random heap reads.
+            models.Index(fields=['container_id', 'measured_at'],
+                         include=['memory_mi', 'cpu_m_seconds'], name='kra_ru_history_cover_idx'),
         ]
 
     def __str__(self):

@@ -2,12 +2,18 @@ from kra import models
 
 
 def get_containers_summary(container_ids=None):
+    params = []
     if container_ids is not None:
-        container_ids_str = ','.join(str(cid) for cid in container_ids)
-        container_filter = f'AND id IN ({container_ids_str})'
+        container_ids = list(container_ids)
+        if not container_ids:
+            return models.Container.objects.none()
+        container_filter = 'AND c.id = ANY(%s)'
+        params.append(container_ids)
     else:
         container_filter = ''
 
+    # The covering history index supplies ordered samples without heap reads.
+    # Keep the two-pass deviation formula stable for large, similar values.
     return models.Container.objects.raw(r"""
     SELECT
         *
@@ -40,7 +46,7 @@ def get_containers_summary(container_ids=None):
                         SELECT
                             *,
                             memory_mi * delta_seconds AS delta_memory_mi_seconds,
-                            delta_cpu_m_seconds / delta_seconds AS cpu_m
+                            delta_cpu_m_seconds / nullif(delta_seconds, 0) AS cpu_m
                         FROM (
                             SELECT
                                 measured_at,
@@ -79,7 +85,8 @@ def get_containers_summary(container_ids=None):
                 FROM (
                     SELECT
                         ((memory_mi - avg_memory_mi)^2 * delta_seconds) AS stddev_memory_mi2_seconds,
-                        ((delta_cpu_m_seconds / delta_seconds - avg_cpu_m)^2 * delta_seconds) AS stddev_cpu_m2_seconds
+                        ((delta_cpu_m_seconds / nullif(delta_seconds, 0) - avg_cpu_m)^2 * delta_seconds)
+                            AS stddev_cpu_m2_seconds
                     FROM (
                         SELECT
                             cpu_m_seconds,
@@ -106,9 +113,9 @@ def get_containers_summary(container_ids=None):
             ) AS pass2q2
         ) AS pass2 ON TRUE
     ) AS summary ON TRUE
-    WHERE total_seconds IS NOT NULL %(container_filter)s
+    WHERE total_seconds > 0 %(container_filter)s
     """ % {
         'container_tblname': models.Container._meta.db_table,
         'ru_tblname': models.ResourceUsage._meta.db_table,
         'container_filter': container_filter,
-    })
+    }, params=params)
