@@ -13,6 +13,7 @@ from kubernetes import client
 from kra import models, tasks
 from kra.collectors.oom import HandlerThread
 from kra.collectors.pods import update_containers
+from kra.oom import as_aware_datetime
 
 
 POD_UID = '12345678-1234-1234-1234-123456789abc'
@@ -41,7 +42,7 @@ class OOMCriticalFixtures:
         event = SimpleNamespace(
             metadata=SimpleNamespace(name='node.oom'),
             involved_object=SimpleNamespace(name='node'),
-            last_timestamp=timestamp or self.now,
+            last_timestamp=as_aware_datetime(timestamp or self.now),
             message=f'pid:123\nproc:python\ntaskcg:/kubepods/pod{POD_UID}/{OLD_ID}',
         )
         HandlerThread(None)._handle(event)
@@ -51,7 +52,8 @@ class OOMCriticalFixtures:
                 finished_at=None, pod=None):
         terminated = client.V1ContainerStateTerminated(
             container_id=f'containerd://{OLD_ID}', exit_code=137, reason=reason,
-            started_at=self.container.started_at, finished_at=finished_at or self.now,
+            started_at=as_aware_datetime(self.container.started_at),
+            finished_at=as_aware_datetime(finished_at or self.now),
         )
         state = client.V1ContainerState(terminated=terminated)
         last_state = client.V1ContainerState()
