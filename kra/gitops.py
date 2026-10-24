@@ -23,6 +23,40 @@ class GitOpsError(Exception):
     pass
 
 
+def synced_revision(result):
+    """Return the applied revision only after Argo has synced this change."""
+    application = kube_client.CustomObjectsApi().get_namespaced_custom_object(
+        ARGOCD_GROUP, ARGOCD_VERSION, settings.ARGOCD_NAMESPACE,
+        ARGOCD_PLURAL, result['application'], _request_timeout=15)
+    status = application.get('status') or {}
+    sync = status.get('sync') or {}
+    if sync.get('status') != 'Synced' or (status.get('health') or {}).get('status') != 'Healthy':
+        return None
+    source = _get_source(application)
+    repository = _parse_github_repo(source['repoURL'])
+    source_path = source['path'].strip('/')
+    if (repository != _parse_github_repo(result['repo_url']) or
+            _get_branch(source, repository) != result['branch'] or
+            (source_path and not result['path'].startswith(source_path + '/'))):
+        raise GitOpsError('Argo CD Application source changed after the adjustment')
+    revision = sync.get('revision')
+    if not revision:
+        return None
+    client = GitHubClient(settings.GITHUB_TOKEN)
+    commit = result['commit']
+    if result['mode'] == 'pull_request':
+        pr = client._request('GET', f'/repos/{repository[0]}/{repository[1]}/pulls/{result["pull_request"]}')
+        if not pr.get('merged'):
+            return None
+        commit = pr['merge_commit_sha']
+    if revision != commit:
+        comparison = client._request(
+            'GET', f'/repos/{repository[0]}/{repository[1]}/compare/{commit}...{revision}')
+        if comparison['status'] not in ('ahead', 'identical'):
+            return None
+    return revision
+
+
 def apply_adjustment(adj, workload_obj):
     """Commit an Argo CD-managed adjustment, or return None for direct Kubernetes patching."""
     tracking_id = (getattr(workload_obj.metadata, 'annotations', None) or {}).get(TRACKING_ID)
