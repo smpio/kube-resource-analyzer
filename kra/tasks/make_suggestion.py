@@ -11,6 +11,11 @@ log = logging.getLogger(__name__)
 
 @task
 def make_suggestion(workload_id, container_name, make_missing_summary=True):
+    # Also accept already queued tasks from producers predating the signal guard.
+    if workload_id is None:
+        log.debug('Skipping suggestion for container "%s" without a workload', container_name)
+        return
+
     try:
         summary = models.Summary.objects\
             .select_related('suggestion')\

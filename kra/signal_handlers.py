@@ -9,7 +9,8 @@ def handle_oom_event_saved(sender, instance, created, **kwargs):
     container = oom.container
     pod = container.pod
 
-    transaction.on_commit(lambda: tasks.make_suggestion.delay(pod.workload_id, container.name))
+    if pod.workload_id is not None:
+        transaction.on_commit(lambda: tasks.make_suggestion.delay(pod.workload_id, container.name))
 
     promoted = kwargs.get('update_fields') == frozenset({'is_critical'}) and oom.is_critical
     if not created and not promoted:
