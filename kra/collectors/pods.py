@@ -151,10 +151,15 @@ def update_containers(pod, mypod):
                 continue
             update_container(mypod, terminated_id, {
                 **data, 'started_at': terminated.started_at, 'finished_at': terminated.finished_at,
-            }, terminated=terminated)
+            }, terminated=terminated, historical=state is status.last_state)
 
 
-def update_container(pod, runtime_id, data, terminated=None):
+def update_container(pod, runtime_id, data, terminated=None, historical=False):
+    if historical:
+        # Current pod resources say nothing about a previous execution's limit.
+        # Preserve observed historical values; leave unobserved limits unknown.
+        data = {key: value for key, value in data.items()
+                if key not in ('memory_limit_mi', 'cpu_request_m')}
     with transaction.atomic():
         # update_or_create holds the same row lock as the OOM handler.
         container, _ = models.Container.objects.update_or_create(
