@@ -7,6 +7,8 @@ class Container(models.Model):
     runtime_id = models.CharField(max_length=255)
     started_at = models.DateTimeField()
     finished_at = models.DateTimeField(blank=True, null=True)
+    # Exact kubelet termination evidence, distinct from cleanup's finished_at.
+    oom_killed_at = models.DateTimeField(blank=True, null=True)
     memory_limit_mi = models.PositiveIntegerField(blank=True, null=True)
     cpu_request_m = models.PositiveIntegerField(blank=True, null=True)
 

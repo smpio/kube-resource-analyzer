@@ -1,4 +1,5 @@
 from django.db.models.signals import post_save
+from django.db import transaction
 
 
 def handle_oom_event_saved(sender, instance, created, **kwargs):
@@ -8,9 +9,10 @@ def handle_oom_event_saved(sender, instance, created, **kwargs):
     container = oom.container
     pod = container.pod
 
-    tasks.make_suggestion.delay(pod.workload_id, container.name)
+    transaction.on_commit(lambda: tasks.make_suggestion.delay(pod.workload_id, container.name))
 
-    if not created:
+    promoted = kwargs.get('update_fields') == frozenset({'is_critical'}) and oom.is_critical
+    if not created and not promoted:
         return
 
     # SDK models carry in-cluster token-refresh callbacks and cannot be pickled.
@@ -20,10 +22,10 @@ def handle_oom_event_saved(sender, instance, created, **kwargs):
           f'comm: {oom.victim_comm}({oom.victim_pid})'
     if oom.is_critical:
         msg = 'CRITICAL ' + msg
-    tasks.notifications.create_event.apply_async(
+    transaction.on_commit(lambda: tasks.notifications.create_event.apply_async(
         args=('ContainerOOM', ref, msg, oom.happened_at, pod.namespace),
         serializer='json',
-    )
+    ))
 
 
 def install():

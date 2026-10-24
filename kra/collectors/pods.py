@@ -3,7 +3,7 @@ import logging
 
 import kubernetes
 import kubernetes.client.rest
-from django.db import IntegrityError
+from django.db import transaction
 from django.utils import timezone
 
 from utils.threading import SupervisedThread, SupervisedThreadGroup
@@ -13,6 +13,7 @@ from utils.django.db import retry_on_connection_close
 
 from kra import kube
 from kra import models
+from kra.oom import record_oom_termination
 
 log = logging.getLogger(__name__)
 
@@ -123,43 +124,44 @@ def update_pod(pod):
 
 
 def update_containers(pod, mypod):
-    mycontainers = {}
+    resources = {
+        container.name: {'name': container.name, **kube.get_container_resources(container)}
+        for container in pod.spec.containers
+    }
+    for status in pod.status.container_statuses or []:
+        data = resources[status.name]
+        runtime_id = kube.parse_container_runtime_id(status.container_id)
+        if status.state and status.state.running and runtime_id:
+            update_container(mypod, runtime_id, {
+                **data, 'started_at': status.state.running.started_at, 'finished_at': None,
+            })
 
-    for container in pod.spec.containers:
-        data = kube.get_container_resources(container)
-        data['name'] = container.name
-        mycontainers[container.name] = data
+        # In CrashLoopBackOff there may be no current runtime ID at all.
+        # last_state still identifies the exact previous container execution.
+        for state in (status.state, status.last_state):
+            terminated = state.terminated if state is not None else None
+            if terminated is None:
+                continue
+            terminated_id = kube.parse_container_runtime_id(terminated.container_id)
+            if terminated_id is None and state is status.state:
+                terminated_id = runtime_id
+            if terminated_id is None or terminated.started_at is None:
+                log.info('Incomplete termination identity for container %s in pod %s/%s',
+                         status.name, pod.metadata.namespace, pod.metadata.name)
+                continue
+            update_container(mypod, terminated_id, {
+                **data, 'started_at': terminated.started_at, 'finished_at': terminated.finished_at,
+            }, terminated=terminated)
 
-    for container_status in pod.status.container_statuses or []:
-        runtime_id = None
-        started_at = None
-        finished_at = None
 
-        if container_status.state.running:
-            started_at = container_status.state.running.started_at
-        elif container_status.state.terminated:
-            started_at = container_status.state.terminated.started_at
-            finished_at = container_status.state.terminated.finished_at
-            runtime_id = kube.parse_container_runtime_id(container_status.state.terminated.container_id)
-
-        runtime_id = kube.parse_container_runtime_id(container_status.container_id) or runtime_id
-        mycontainers[container_status.name]['runtime_id'] = runtime_id
-        mycontainers[container_status.name]['started_at'] = started_at
-        mycontainers[container_status.name]['finished_at'] = finished_at
-
-    for name, data in mycontainers.items():
-        runtime_id = data.pop('runtime_id', None)
-        if not runtime_id:
-            log.info('No runtime_id for container %s in pod %s/%s', name, pod.metadata.namespace, pod.metadata.name)
-            continue
-        if not data.get('started_at'):
-            log.info('No started_at for container %s in pod %s/%s', name, pod.metadata.namespace, pod.metadata.name)
-
-        try:
-            c, _ = models.Container.objects.update_or_create(pod=mypod, runtime_id=runtime_id, defaults=data)
-        except IntegrityError as err:
-            if data.get('started_at'):
-                raise err
+def update_container(pod, runtime_id, data, terminated=None):
+    with transaction.atomic():
+        # update_or_create holds the same row lock as the OOM handler.
+        container, _ = models.Container.objects.update_or_create(
+            pod=pod, runtime_id=runtime_id, defaults=data,
+        )
+        if terminated is not None:
+            record_oom_termination(container, terminated)
 
 
 def get_workload_from_pod(pod):
