@@ -1,5 +1,6 @@
 import queue
 import logging
+import time
 
 import kubernetes
 import kubernetes.client.rest
@@ -10,6 +11,7 @@ from utils.threading import SupervisedThread, SupervisedThreadGroup
 from utils.kubernetes.watch import KubeWatcher, WatchEventType
 from utils.signal import install_shutdown_signal_handlers
 from utils.django.db import retry_on_connection_close
+from utils.django.db import fix_long_connections
 
 from kra import kube
 from kra import models
@@ -25,8 +27,22 @@ def main():
     threads = SupervisedThreadGroup()
     threads.add_thread(WatcherThread(q))
     threads.add_thread(HandlerThread(q))
+    threads.add_thread(GitOpsReconciliationThread())
     threads.start_all()
     threads.wait_any()
+
+
+class GitOpsReconciliationThread(SupervisedThread):
+    def run_supervised(self):
+        from kra.tasks import reconcile_gitops_adjustments
+
+        while True:
+            try:
+                fix_long_connections()
+                reconcile_gitops_adjustments.apply_async(expires=60)
+            except Exception:
+                log.exception('Failed to queue GitOps reconciliation')
+            time.sleep(30)
 
 
 class WatcherThread(SupervisedThread):
