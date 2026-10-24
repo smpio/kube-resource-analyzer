@@ -1,6 +1,7 @@
 import os
 import pickle
 import logging
+import time
 from collections import defaultdict
 
 from utils.django.db import bulk_save
@@ -25,9 +26,13 @@ def make_summaries():
 
     if containers_by_pod_id is None:
         log.info('Query containers summary...')
+        started = time.monotonic()
+        container_count = 0
         containers_by_pod_id = defaultdict(list)
         for c in get_containers_summary():
             containers_by_pod_id[c.pod_id].append(c)
+            container_count += 1
+        log.info('Computed %d container summaries in %.2f seconds', container_count, time.monotonic() - started)
         if summary_dump_filename:
             with open(summary_dump_filename, 'wb') as summary_dump_file:
                 pickle.dump(containers_by_pod_id, summary_dump_file)
