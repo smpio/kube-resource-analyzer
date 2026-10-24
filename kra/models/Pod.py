@@ -6,7 +6,8 @@ class Pod(models.Model):
     workload = models.ForeignKey('Workload', on_delete=models.CASCADE, blank=True, null=True)
     namespace = models.CharField(max_length=255)
     name = models.CharField(max_length=255)
-    spec_hash = models.CharField(max_length=32)
+    # Both pod-template-hash and controller-revision-hash are label values.
+    spec_hash = models.CharField(max_length=63)
     started_at = models.DateTimeField()
     gone_at = models.DateTimeField(blank=True, null=True)
 

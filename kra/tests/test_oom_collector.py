@@ -54,6 +54,27 @@ class CgroupTests(TestCase):
 
 
 class OOMNotificationTests(TestCase):
+    def test_standalone_pod_keeps_notifications_without_enqueuing_suggestions(self):
+        for critical, created in ((False, True), (True, False)):
+            with self.subTest(critical=critical, created=created):
+                pod = SimpleNamespace(name='standalone', namespace='example', workload_id=None)
+                oom = SimpleNamespace(
+                    container=SimpleNamespace(name='main', pod=pod),
+                    happened_at=datetime.datetime(2026, 10, 24, tzinfo=datetime.timezone.utc),
+                    victim_comm='worker', victim_pid=12345, is_critical=critical,
+                )
+                with mock.patch.object(tasks.make_suggestion, 'delay') as suggestion, \
+                        mock.patch.object(tasks.notifications.create_event, 'apply_async') as notification:
+                    handle_oom_event_saved(None, oom, created=created, update_fields=frozenset({'is_critical'}))
+                suggestion.assert_not_called()
+                notification.assert_called_once()
+                self.assertEqual(notification.call_args.kwargs['args'][2].startswith('CRITICAL '), critical)
+
+    def test_already_queued_standalone_suggestion_does_not_access_database(self):
+        with mock.patch('kra.tasks.make_suggestion.models.Summary.objects') as summaries:
+            tasks.make_suggestion.run(None, 'main')
+        self.assertEqual(summaries.mock_calls, [])
+
     @override_settings(TIME_ZONE='UTC', USE_TZ=False)
     def test_db_timestamp_is_sent_with_required_rfc3339_offset(self):
         timestamp = datetime.datetime(2026, 10, 24, 7, 9, 6)
