@@ -1,15 +1,24 @@
 from datetime import timedelta
 
+from django.utils import timezone
+
 
 # Events and kubelet timestamps have different precision and reporting latency.
 # A later restart must not promote all earlier child OOMs in the same container.
 CRITICAL_OOM_WINDOW = timedelta(seconds=10)
 
 
+def as_aware_datetime(value):
+    # The SDK returns aware datetimes, but USE_TZ=False returns naive DB values.
+    if timezone.is_naive(value):
+        return timezone.make_aware(value, timezone.get_default_timezone())
+    return value
+
+
 def is_critical_oom(container, happened_at):
     return (
         container.oom_killed_at is not None
-        and abs(container.oom_killed_at - happened_at) <= CRITICAL_OOM_WINDOW
+        and abs(as_aware_datetime(container.oom_killed_at) - as_aware_datetime(happened_at)) <= CRITICAL_OOM_WINDOW
     )
 
 

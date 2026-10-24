@@ -13,6 +13,7 @@ from kubernetes import client
 from kra import models, tasks
 from kra.collectors.oom import HandlerThread
 from kra.collectors.pods import update_containers
+from kra.oom import as_aware_datetime
 
 
 POD_UID = '12345678-1234-1234-1234-123456789abc'
@@ -41,17 +42,18 @@ class OOMCriticalFixtures:
         event = SimpleNamespace(
             metadata=SimpleNamespace(name='node.oom'),
             involved_object=SimpleNamespace(name='node'),
-            last_timestamp=timestamp or self.now,
+            last_timestamp=as_aware_datetime(timestamp or self.now),
             message=f'pid:123\nproc:python\ntaskcg:/kubepods/pod{POD_UID}/{OLD_ID}',
         )
         HandlerThread(None)._handle(event)
         return models.OOMEvent.objects.latest('id')
 
     def observe(self, *, restarted=False, waiting=False, reason='OOMKilled',
-                finished_at=None, pod=None):
+                finished_at=None, pod=None, memory='32Mi', cpu='10m'):
         terminated = client.V1ContainerStateTerminated(
             container_id=f'containerd://{OLD_ID}', exit_code=137, reason=reason,
-            started_at=self.container.started_at, finished_at=finished_at or self.now,
+            started_at=as_aware_datetime(self.container.started_at),
+            finished_at=as_aware_datetime(finished_at or self.now),
         )
         state = client.V1ContainerState(terminated=terminated)
         last_state = client.V1ContainerState()
@@ -70,13 +72,36 @@ class OOMCriticalFixtures:
         )
         observed = client.V1Pod(
             metadata=client.V1ObjectMeta(uid=str((pod or self.pod).uid), name='worker', namespace='example'),
-            spec=client.V1PodSpec(containers=[client.V1Container(name='main')]),
+            spec=client.V1PodSpec(containers=[client.V1Container(
+                name='main', resources=client.V1ResourceRequirements(
+                    limits={'memory': memory}, requests={'cpu': cpu},
+                ),
+            )]),
             status=client.V1PodStatus(container_statuses=[status]),
         )
         update_containers(observed, pod or self.pod)
 
 
 class OOMCriticalTests(OOMCriticalFixtures, TestCase):
+    def test_previous_execution_keeps_observed_limits_after_pod_resize(self):
+        self.container.cpu_request_m = 10
+        self.container.save(update_fields=['cpu_request_m'])
+        self.observe(restarted=True, memory='128Mi', cpu='100m')
+        self.observe(restarted=True, memory='256Mi', cpu='200m')
+        self.container.refresh_from_db()
+        self.assertEqual(self.container.memory_limit_mi, 32)
+        self.assertEqual(self.container.cpu_request_m, 10)
+        current = models.Container.objects.get(runtime_id=NEW_ID)
+        self.assertEqual(current.memory_limit_mi, 256)
+        self.assertEqual(current.cpu_request_m, 200)
+
+    def test_unobserved_previous_execution_does_not_inherit_current_limits(self):
+        self.container.delete()
+        self.observe(restarted=True, memory='128Mi', cpu='100m')
+        previous = models.Container.objects.get(runtime_id=OLD_ID)
+        self.assertIsNone(previous.memory_limit_mi)
+        self.assertIsNone(previous.cpu_request_m)
+
     def test_event_before_pod_status_is_promoted_and_notified_once(self):
         with self.captureOnCommitCallbacks(execute=True):
             event = self.oom()

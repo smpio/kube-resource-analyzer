@@ -4,6 +4,7 @@ import datetime
 import kubernetes.client as api
 
 from kra.celery import task
+from kra.oom import as_aware_datetime
 
 
 @task
@@ -12,6 +13,8 @@ def create_event(reason: str,
                  message: str,
                  timestamp: datetime.datetime,
                  namespace: str = ''):
+    # Kubernetes requires RFC3339 with an offset, including events loaded from DB.
+    timestamp = as_aware_datetime(timestamp)
     # Accept references in tasks queued by the previous version during rollout.
     if isinstance(involved_object, dict):
         involved_object = api.V1ObjectReference(**involved_object)

@@ -4,6 +4,7 @@ from unittest import TestCase, mock
 
 from kubernetes import client
 from kombu.serialization import dumps, loads
+from django.test import override_settings
 
 from kra import tasks
 from kra.collectors.oom import get_container, parse_event_message
@@ -53,6 +54,17 @@ class CgroupTests(TestCase):
 
 
 class OOMNotificationTests(TestCase):
+    @override_settings(TIME_ZONE='UTC', USE_TZ=False)
+    def test_db_timestamp_is_sent_with_required_rfc3339_offset(self):
+        timestamp = datetime.datetime(2026, 10, 24, 7, 9, 6)
+        reference = {'kind': 'Pod', 'name': 'worker', 'namespace': 'example'}
+        with mock.patch('kra.tasks.notifications.api.CoreV1Api') as core:
+            create_event.run('ContainerOOM', reference, 'CRITICAL OOM', timestamp, 'example')
+        event = core.return_value.create_namespaced_event.call_args.args[1]
+        serialized = client.ApiClient().sanitize_for_serialization(event)
+        self.assertEqual(serialized['firstTimestamp'], '2026-10-24T07:09:06+00:00')
+        self.assertEqual(serialized['lastTimestamp'], '2026-10-24T07:09:06+00:00')
+
     def test_signal_serializes_with_in_cluster_configuration_and_worker_creates_event(self):
         # The SDK attaches this non-picklable hook to reference models in-cluster.
         configuration = client.Configuration()
