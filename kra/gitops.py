@@ -96,7 +96,7 @@ def apply_adjustment(adj, workload_obj):
     if updated == original:
         raise GitOpsError(f'Git manifest {path} already contains the requested resources')
 
-    commit_message = f'kra: adjust {adj.workload.namespace}/{adj.workload.name} resources (#{adj.id})'
+    commit_message = f'chore(kra): adjust {adj.workload.namespace}/{adj.workload.name} resources (#{adj.id})'
     mode = settings.GITOPS_MODE
     if mode == 'direct':
         commit = client.commit_file(repository, branch, path, updated, commit_message)
