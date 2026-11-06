@@ -87,3 +87,7 @@ Pod collector сохраняет время подтверждённого за�
 * influxdb
 
 Пока остановился на timescaledb.
+
+## OOM event pipeline
+
+[Collection, notification delivery, and compatibility checks](docs/oom-events.md).
